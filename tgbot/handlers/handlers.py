@@ -111,7 +111,8 @@ def show_chats(update, context):
             chat_id=chat_id,
             text=texts.CHATS,
             parse_mode=telegram.ParseMode.HTML,
-            reply_markup=kb_chats_services_blogs()
+            reply_markup=kb_chats_services_blogs(),
+            disable_web_page_preview=True
         )
     else:
         caught_unauthorized(update, context)
