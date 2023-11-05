@@ -59,6 +59,7 @@ def new_user(user: User, utm_source):
 def new_link(monitored_link):
     text = '🔗 #new_link\n'
     text += chat_link_html(monitored_link)
+    text += f'\n<code>{monitored_link.chat_id}</code>'
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )

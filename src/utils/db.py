@@ -2,6 +2,7 @@ import enum
 
 from sqlalchemy import Column, Integer, Text, Enum, DateTime, ForeignKey, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy.sql import func
 
 from aiogram.types import User
 
@@ -17,6 +18,7 @@ class MonitoredLink(Base):
     __tablename__ = 'monitored_links'
     link = Column(Text, primary_key=True)
     chat_name = Column(Text)
+    chat_id = Column(Integer)
 
 class UserStatus(enum.Enum):
     NOT_AUTHORIZED = enum.auto()
@@ -34,7 +36,7 @@ class BotUser(Base):
     status = Column(Enum(UserStatus))
     utm_source_id = Column(Text, ForeignKey(MonitoredLink.link))
     utm_source = relationship(MonitoredLink)
-    created_at = Column(DateTime, server_default='now()')
+    created_at = Column(DateTime, server_default=func.now())
 
 
 
@@ -93,10 +95,10 @@ def authorize(user: User):
         session.commit()
         logs.finished_authorization(user, bot_user.utm_source)
 
-def save_link(link: str, chat_name: str):
+def save_link(link: str, chat_name: str, chat_id: int):
     with Session() as session:
         session.expire_on_commit = False
-        monitored_link = MonitoredLink(link=link, chat_name=chat_name)
+        monitored_link = MonitoredLink(link=link, chat_name=chat_name, chat_id=chat_id)
         session.add(monitored_link)
         session.commit()
         logs.new_link(monitored_link)

@@ -19,7 +19,7 @@ async def make_link(message: Message):
         await message.reply(str(error))
         return
 
-    save_link(link.invite_link, message.chat.title)
+    save_link(link.invite_link, message.chat.title, message.chat.id)
     await message.reply(f'Ссылка с подтверждением создана: {link.invite_link}\n\n'
                         'Бот будет автоматически принимать тех, кто подтвердил физтеховскую почту, '
                         'и предлагать авторизоваться остальным.')
