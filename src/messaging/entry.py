@@ -13,6 +13,11 @@ bot = Bot(BOT_TOKEN)
 
 @router.message(Command('make_link'))
 async def make_link(message: Message):
+
+    if not await is_sender_admin(message):
+        await message.reply('Эту команду могут использовать только администраторы чата')
+        return
+
     try:
         link = await bot.create_chat_invite_link(message.chat.id, creates_join_request=True)
     except TelegramBadRequest as error:
@@ -23,6 +28,12 @@ async def make_link(message: Message):
     await message.reply(f'Ссылка с подтверждением создана: {link.invite_link}\n\n'
                         'Бот будет автоматически принимать тех, кто подтвердил физтеховскую почту, '
                         'и предлагать авторизоваться остальным.')
+
+
+async def is_sender_admin(message: Message):
+    member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+    return member.status in ('administrator', 'creator')
+
 
 @router.chat_join_request()
 async def accept_or_decline(request: ChatJoinRequest):
