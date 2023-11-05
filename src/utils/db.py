@@ -36,7 +36,7 @@ class BotUser(Base):
     status = Column(Enum(UserStatus))
     utm_source_id = Column(Text, ForeignKey(MonitoredLink.link))
     utm_source = relationship(MonitoredLink)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now()) # pylint: disable=not-callable
 
 
 
