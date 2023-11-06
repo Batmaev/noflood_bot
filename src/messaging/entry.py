@@ -14,6 +14,10 @@ bot = Bot(BOT_TOKEN)
 @router.message(Command('make_link'))
 async def make_link(message: Message):
 
+    if message.chat.type == 'private':
+        await message.reply('Эту команду нужно использовать непосредственно в чате')
+        return
+
     if not await is_sender_admin(message):
         await message.reply('Эту команду могут использовать только администраторы чата')
         return
