@@ -41,9 +41,17 @@ async def is_sender_admin(message: Message):
 
 @router.chat_join_request()
 async def accept_or_decline(request: ChatJoinRequest):
-    monitored_link = get_link(request.invite_link.invite_link)
-    if monitored_link is None:
-        return
+    if request.invite_link is not None:
+        monitored_link = get_link(request.invite_link.invite_link)
+        if monitored_link is None:
+            return
+    else:
+        # public chat; Telegram will not say which link was used
+        monitored_link = MonitoredLink(
+            chat_name=request.chat.title,
+            chat_id=request.chat.id,
+            link=f'https://t.me/{request.chat.username}'
+        )
 
     bot_user = get_user(request.from_user)
     if bot_user is None or bot_user.status != UserStatus.AUTHORIZED:
