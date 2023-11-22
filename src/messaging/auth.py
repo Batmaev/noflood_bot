@@ -36,7 +36,7 @@ class EmailStatus(StatesGroup):
     WAITING_FOR_CODE = State()
 
 
-@router.callback_query(F.data == 'authorize')
+@router.callback_query(F.data == 'authorize', F.message.chat.type == 'private')
 async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
     if isinstance(update, CallbackQuery):
         await update.answer()
@@ -55,7 +55,7 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
     await state.set_state(EmailStatus.WAITING_FOR_EMAIL)
 
 
-@router.message(EmailStatus.WAITING_FOR_EMAIL)
+@router.message(EmailStatus.WAITING_FOR_EMAIL, F.chat.type == 'private')
 async def process_email(message: Message, state: FSMContext):
     if not message.text.endswith('@phystech.edu'):
         await message.answer('Не могу разобрать, что-то на физтеховском. '
@@ -73,13 +73,15 @@ async def process_email(message: Message, state: FSMContext):
     save_code(message.from_user, code)
 
     await message.answer(f'Мы отправили письмо на почту <code>{message.text}</code>. '
-                         'Пришлите код сообщением сюда.',
+                         'Пришлите код сообщением сюда.\n\n'
+                         'Если письмо не приходит, то, скорее всего, в почте опечатка. '
+                         'Тогда нажмите на кнопку "Авторизоваться" ещё раз.',
                          parse_mode='HTML')
 
     await state.set_state(EmailStatus.WAITING_FOR_CODE)
 
 
-@router.message(EmailStatus.WAITING_FOR_CODE)
+@router.message(EmailStatus.WAITING_FOR_CODE, F.chat.type == 'private')
 async def process_code(message: Message, state: FSMContext):
     bot_user = get_user(message.from_user)
 
