@@ -1,5 +1,5 @@
 from aiogram import Router, Bot
-from aiogram.types import Message, ChatJoinRequest
+from aiogram.types import Message, ChatJoinRequest, ChatMemberUpdated
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest
 
@@ -11,32 +11,62 @@ router = Router()
 bot = Bot(BOT_TOKEN)
 
 
-@router.message(Command('make_link'))
-async def make_link(message: Message):
-
-    if message.chat.type == 'private':
-        await message.reply('Эту команду нужно использовать непосредственно в чате')
-        return
-
-    if not await is_sender_admin(message):
-        await message.reply('Эту команду могут использовать только администраторы чата')
-        return
-
+async def make_link(update: Message | ChatMemberUpdated):
     try:
-        link = await bot.create_chat_invite_link(message.chat.id, creates_join_request=True)
+        link = await bot.create_chat_invite_link(update.chat.id, creates_join_request=True)
     except TelegramBadRequest as error:
-        await message.reply(str(error))
+        await update.answer(str(error))
         return
 
-    save_link(link.invite_link, message.chat.title, message.chat.id)
-    await message.reply(f'Ссылка с подтверждением создана: {link.invite_link}\n\n'
+    save_link(link.invite_link, update.chat.title, update.chat.id)
+    await update.answer(f'Создана защищенная ссылка с подтверждением: {link.invite_link}\n\n'
                         'Бот будет автоматически принимать тех, кто подтвердил физтеховскую почту, '
                         'и предлагать авторизоваться остальным.')
 
 
-async def is_sender_admin(message: Message):
-    member = await bot.get_chat_member(message.chat.id, message.from_user.id)
-    return member.status in ('administrator', 'creator')
+
+@router.message(Command('make_link'))
+async def process_make_link_command(message: Message):
+    if message.chat.type == 'private':
+        await message.answer('Эту команду нужно использовать непосредственно в чате')
+        return
+
+    async def is_sender_admin(message: Message):
+        member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+        return member.status in ('administrator', 'creator')
+
+    if not await is_sender_admin(message):
+        await message.answer('Эту команду могут использовать только администраторы чата')
+        return
+    await make_link(message)
+
+
+@router.my_chat_member()
+async def process_my_chat_member(update: ChatMemberUpdated):
+    if update.new_chat_member.status in ('kicked', 'left'):
+        logs.bot_kicked(update.chat, update.from_user)
+        return
+
+    def check_status(member):
+        return member.status == 'administrator' and member.can_invite_users
+
+    was_ok = check_status(update.old_chat_member)
+    is_ok = check_status(update.new_chat_member)
+
+    if is_ok and not was_ok:
+        await make_link(update)
+
+    elif not is_ok and not was_ok:
+        await update.answer(
+            'Этот бот может создавать защищенные ссылки. '
+            'Для этого нужно назначить его администратором и дать право приглашать пользователей.'
+        )
+
+    elif was_ok and not is_ok:
+        await update.answer(
+            'Бот больше не сможет принимать пользователей в этот чат. '
+            'Ему не хватает прав'
+        )
 
 
 @router.chat_join_request()

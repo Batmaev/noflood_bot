@@ -3,7 +3,7 @@ import traceback
 import html
 
 from aiogram import Bot
-from aiogram.types import User, ErrorEvent
+from aiogram.types import User, Chat, ErrorEvent
 
 from ..utils.config import BOT_TOKEN, LOGS_CHAT_ID, SUPPORT_CALL
 
@@ -93,6 +93,14 @@ def chat_join(user: User, monitored_link):
 def no_flood_invite(user: User):
     text = '⬆ #no_flood_invite\n'
     text += user_html(user)
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+def bot_kicked(chat: Chat, user: User):
+    text = '👢 #bot_kicked\n'
+    text += f'from {chat.title} <code>{chat.id}</code>\n'
+    text += 'by ' + user_html(user)
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
