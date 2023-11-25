@@ -1,4 +1,5 @@
-config.py
+config*.py
+!config.template.py
 long_texts.py
 *.csv
 *.db
