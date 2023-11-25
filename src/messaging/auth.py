@@ -19,7 +19,7 @@ authorize_keyboard = InlineKeyboardMarkup(
 )
 
 
-@router.message(CommandStart())
+@router.message(CommandStart(), F.chat.type == 'private')
 async def start(message: Message):
     await message.answer('👋')
     await message.answer(
