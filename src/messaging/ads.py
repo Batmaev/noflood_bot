@@ -54,7 +54,7 @@ async def welcome_with_no_flood(message: Message, how: Literal['after_auth', 'ad
 async def accept_to_no_flood(query: CallbackQuery):
     link = await bot.create_chat_invite_link(
         NO_FLOOD_CHANNEL_ID,
-        member_limit=1,
+        member_limit=2,
         name=f'for {query.from_user.id}'
     )
     await query.message.answer_animation(
