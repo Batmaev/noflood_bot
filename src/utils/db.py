@@ -83,7 +83,7 @@ def save_code(user: User, code: str):
         session.commit()
         logs.new_code(user, bot_user.email, code)
 
-def get_user(user: User) -> BotUser:
+def get_user(user: User) -> BotUser | None:
     with Session() as session:
         bot_user = session.query(BotUser).filter(BotUser.id == user.id).first()
         return bot_user

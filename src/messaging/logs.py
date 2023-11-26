@@ -104,3 +104,12 @@ def bot_kicked(chat: Chat, user: User):
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
+
+def manual_authorization(user: User, email: str | None):
+    text = '🔐 #manual_authorization\n'
+    text += user_html(user)
+    if email:
+        text += f'\n<code>{email}</code>'
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )

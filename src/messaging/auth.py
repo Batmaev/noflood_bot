@@ -1,12 +1,14 @@
 from aiogram import Router, F
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from aiogram.filters import CommandStart
+from aiogram.types import Message, Chat, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome_with_utm, welcome_with_no_flood, show_chats_and_services
-from ..utils.db import save_user, save_email, save_code, get_user, authorize, UserStatus
+from ..utils.db import save_user, save_email, save_code, get_user, authorize, UserStatus, BotUser
+from ..utils.config import SUPPORT_IDS
 from ..utils.mailing import send_code
+from . import logs
 
 
 router = Router()
@@ -20,7 +22,7 @@ authorize_keyboard = InlineKeyboardMarkup(
 
 
 @router.message(CommandStart(), F.chat.type == 'private')
-async def start(message: Message):
+async def start(message: Message, state: FSMContext):
     await message.answer('👋')
     await message.answer(
         'Этот бот позволит вам добавиться в общий чат физтехов, даст информацию о том, какие есть '
@@ -28,6 +30,7 @@ async def start(message: Message):
         reply_markup=authorize_keyboard
     )
     save_user(message.from_user)
+    await state.clear()
 
 
 
@@ -89,6 +92,11 @@ async def process_code(message: Message, state: FSMContext):
         await message.answer('Где-то ошибка, введите ещё раз, пожалуйста.')
         return
 
+    await finalize_registration(bot_user, message)
+    await state.clear()
+
+
+async def finalize_registration(bot_user: BotUser, message: Message):
     authorize(message.from_user)
 
     if bot_user.utm_source_id is not None:
@@ -96,7 +104,41 @@ async def process_code(message: Message, state: FSMContext):
     else:
         await welcome_with_no_flood(message)
 
-    await state.clear()
+
+@router.message(Command('auth'))
+async def manual_auth(message: Message):
+    if message.from_user.id not in SUPPORT_IDS:
+        await message.answer('Недостаточно прав.')
+        return
+
+    if message.reply_to_message is None:
+        await message.answer('Ответьте этой командой на сообщение пользователя, '
+                             'которого нужно авторизовать.')
+        return
+
+    bot_user = get_user(message.reply_to_message.from_user)
+    if bot_user is None:
+        await message.answer('Пусть пользователь сначала напишет боту /start')
+        return
+
+    email = None
+    if message.reply_to_message.entities is not None:
+        for entity in message.reply_to_message.entities:
+            if entity.type == 'email':
+                email = message.reply_to_message.text[entity.offset:entity.offset + entity.length]
+                save_email(message.reply_to_message.from_user, email)
+                break
+
+    mock_message = message.reply_to_message.model_copy(
+        update = {
+            'chat': Chat(id=message.reply_to_message.from_user.id, type='private'),
+        }
+    )
+
+    await finalize_registration(bot_user, mock_message)
+    logs.manual_authorization(mock_message.from_user, email)
+    await message.answer('Авторизовали.')
+
 
 
 @router.message(F.chat.type == 'private')
@@ -104,7 +146,7 @@ async def default_message(message: Message, state: FSMContext):
     bot_user = get_user(message.from_user)
 
     if bot_user is None:
-        await start(message)
+        await start(message, state)
     elif bot_user.status != UserStatus.AUTHORIZED:
         await ask_for_email(message, state)
     else:
