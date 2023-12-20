@@ -113,3 +113,10 @@ def manual_authorization(user: User, email: str | None):
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
+
+def button_pressed(user: User, button: str):
+    text = f'🔘 #button_pressed {button}\n'
+    text += user_html(user)
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )

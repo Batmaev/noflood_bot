@@ -123,6 +123,7 @@ async def switch_chats_and_services(query: CallbackQuery):
     await query.message.answer(text, reply_markup=buttons, parse_mode='HTML',
                                disable_web_page_preview=True)
     await query.answer()
+    logs.button_pressed(query.from_user, query.data)
 
 
 
@@ -130,7 +131,7 @@ async def switch_chats_and_services(query: CallbackQuery):
 async def show_no_flood_rules(query: CallbackQuery):
     await welcome_with_no_flood(query.message, how='ad')
     await query.answer()
-
+    logs.button_pressed(query.from_user, query.data)
 
 
 async def is_in_chat(user_id: int, chat_id: int):
