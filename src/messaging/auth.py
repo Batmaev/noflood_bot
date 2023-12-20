@@ -6,9 +6,10 @@ from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome_with_utm, welcome_with_no_flood, show_chats_and_services
 from ..utils.db import save_user, save_email, save_code, get_user, authorize, UserStatus, BotUser
-from ..utils.config import SUPPORT_IDS
+from ..utils.config import SUPPORT_IDS, SUPPORT_CHAT_ID
 from ..utils.mailing import send_code
 from . import logs
+from .long_texts import ASK_FOR_EMAIL
 
 
 router = Router()
@@ -47,14 +48,7 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
     else:
         message = update
 
-    await message.answer(
-        'Давай удостоверимся, что ты из МФТИ. '
-        'Hапиши свою почту на домене <code>@phystech.edu</code> '
-        'и мы вышлем на неё секретный код. '
-        'Отправь сюда код с электронной почты '
-        'и ты получишь уникальный доступ к чатикам 😉',
-        parse_mode='HTML'
-    )
+    await message.answer(ASK_FOR_EMAIL, parse_mode='HTML', disable_web_page_preview=True)
     await state.set_state(EmailStatus.WAITING_FOR_EMAIL)
 
 
@@ -107,7 +101,10 @@ async def finalize_registration(bot_user: BotUser, message: Message):
 
 @router.message(Command('auth'))
 async def manual_auth(message: Message):
-    if message.from_user.id not in SUPPORT_IDS:
+    is_support_user = message.from_user.id not in SUPPORT_IDS
+    is_support_chat = message.sender_chat is not None and message.sender_chat.id == SUPPORT_CHAT_ID
+
+    if not (is_support_user or is_support_chat):
         await message.answer('Недостаточно прав.')
         return
 
@@ -136,9 +133,8 @@ async def manual_auth(message: Message):
     )
 
     await finalize_registration(bot_user, mock_message)
-    logs.manual_authorization(mock_message.from_user, email)
     await message.answer('Авторизовали.')
-
+    logs.manual_authorization(mock_message.from_user, email)
 
 
 @router.message(F.chat.type == 'private')
