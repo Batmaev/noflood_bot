@@ -18,7 +18,7 @@ def send_code(email: str) -> str | None:
             assert login_response == 235
             break
         except (smtplib.SMTPServerDisconnected, AssertionError, socket.timeout) as error:
-            logs.warn('Failed to login to SMTP server: %s', error)
+            logs.warn(f'Failed to login to SMTP server: {error}')
             time.sleep(5)
     else:
         logs.warn('Failed to login to SMTP server after several attempts', notify=True)
@@ -39,7 +39,7 @@ def send_code(email: str) -> str | None:
             server.send_message(msg)
             break
         except (smtplib.SMTPServerDisconnected, socket.timeout) as error:
-            logs.warn('Failed to send email: %s', error)
+            logs.warn(f'Failed to send email: {error}')
             time.sleep(5)
     else:
         logs.warn(f'Failed to send email after several attempts: {email}', notify=True)
