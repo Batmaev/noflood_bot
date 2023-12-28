@@ -101,7 +101,7 @@ async def finalize_registration(bot_user: BotUser, message: Message):
 
 @router.message(Command('auth'))
 async def manual_auth(message: Message):
-    is_support_user = message.from_user.id not in SUPPORT_IDS
+    is_support_user = message.from_user.id in SUPPORT_IDS
     is_support_chat = message.sender_chat is not None and message.sender_chat.id == SUPPORT_CHAT_ID
 
     if not (is_support_user or is_support_chat):
