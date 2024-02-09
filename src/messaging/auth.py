@@ -4,7 +4,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from .ads import welcome_with_utm, welcome_with_no_flood, show_chats_and_services
+from .ads import welcome, ad_after_auth
 from ..utils.db import save_user, save_email, save_code, get_user, authorize, UserStatus, BotUser
 from ..utils.config import SUPPORT_IDS, SUPPORT_CHAT_ID
 from ..utils.mailing import send_code
@@ -26,7 +26,7 @@ authorize_keyboard = InlineKeyboardMarkup(
 async def start(message: Message, state: FSMContext):
     await message.answer('👋')
     await message.answer(
-        'Этот бот позволит вам добавиться в общий чат физтехов, даст информацию о том, какие есть '
+        'Этот бот позволит вам добавиться в общие чаты физтехов, даст информацию о том, какие есть '
         'чаты, каналы и сервисы в телеграме на Физтехе.',
         reply_markup=authorize_keyboard
     )
@@ -92,11 +92,7 @@ async def process_code(message: Message, state: FSMContext):
 
 async def finalize_registration(bot_user: BotUser, message: Message):
     authorize(message.from_user)
-
-    if bot_user.utm_source_id is not None:
-        await welcome_with_utm(message, bot_user.utm_source_id)
-    else:
-        await welcome_with_no_flood(message)
+    await welcome(message, bot_user.utm_source_id)
 
 
 @router.message(Command('auth'))
@@ -146,4 +142,4 @@ async def default_message(message: Message, state: FSMContext):
     elif bot_user.status != UserStatus.AUTHORIZED:
         await ask_for_email(message, state)
     else:
-        await show_chats_and_services(message)
+        await ad_after_auth(message)

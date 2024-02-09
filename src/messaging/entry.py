@@ -3,6 +3,7 @@ from aiogram.types import Message, ChatJoinRequest, ChatMemberUpdated
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest
 
+from .ads import ad_after_join
 from ..utils.config import BOT_TOKEN
 from ..utils.db import UserStatus, MonitoredLink, save_link, get_link, save_user, get_user
 from . import logs
@@ -93,6 +94,7 @@ async def accept_or_decline(request: ChatJoinRequest):
         await request.approve()
         await congrats_user(request, monitored_link)
         logs.chat_join(request.from_user, monitored_link)
+        await ad_after_join(request)
 
 
 async def talk_to_user(request: ChatJoinRequest, monitored_link: MonitoredLink):
@@ -103,12 +105,14 @@ async def talk_to_user(request: ChatJoinRequest, monitored_link: MonitoredLink):
     'Используй команду /start'
 )
 
+
 async def congrats_user(request: ChatJoinRequest, monitored_link: MonitoredLink):
     await request.answer_pm(
-    f'Твоя заявка на вступление в {logs.chat_link_html(monitored_link)} принята 🎉',
-    parse_mode='HTML',
-    disable_web_page_preview=True
-)
+        f'Твоя заявка на вступление в {logs.chat_link_html(monitored_link)} принята 🎉',
+        parse_mode='HTML',
+        disable_web_page_preview=True
+    )
+
 
 
 @router.message(Command('error'))

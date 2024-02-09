@@ -1,4 +1,5 @@
 import enum
+import datetime
 
 from sqlalchemy import Column, Integer, Text, Enum, DateTime, ForeignKey, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
@@ -37,6 +38,7 @@ class BotUser(Base):
     utm_source_id = Column(Text, ForeignKey(MonitoredLink.link))
     utm_source = relationship(MonitoredLink)
     created_at = Column(DateTime, server_default=func.now()) # pylint: disable=not-callable
+    last_ad_time = Column(DateTime, default=datetime.datetime(1970, 1, 1))
 
 
 
@@ -94,6 +96,13 @@ def authorize(user: User):
         bot_user.status = UserStatus.AUTHORIZED
         session.commit()
         logs.finished_authorization(user, bot_user.utm_source)
+
+def update_last_ad_time(user: User):
+    with Session() as session:
+        bot_user = session.query(BotUser).filter(BotUser.id == user.id).first()
+        bot_user.last_ad_time = datetime.datetime.now()
+        session.commit()
+
 
 def save_link(link: str, chat_name: str, chat_id: int):
     with Session() as session:

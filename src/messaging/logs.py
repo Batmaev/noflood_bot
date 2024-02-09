@@ -90,12 +90,6 @@ def chat_join(user: User, monitored_link):
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def no_flood_invite(user: User):
-    text = '⬆ #no_flood_invite\n'
-    text += user_html(user)
-    asyncio.create_task(
-        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
-    )
 
 def bot_kicked(chat: Chat, user: User):
     text = '👢 #bot_kicked\n'
