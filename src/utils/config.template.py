@@ -7,11 +7,6 @@ SMTP_PORT = 587
 EMAIL = 'aaaaaaaaaaa@aaaaaa.aaa'
 EMAIL_PASSWORD = 'aaaaaaaaaaaaaaaa'
 
-NO_FLOOD_CHANNEL_ID = -1001111111111
-NO_FLOOD_CHAT_ID = -1002222222222
-
-GIF_ID = 'AaAaAaAaAaAaAaAaAaAaAaAaAaAaA'
-
 LOGS_CHAT_ID = -1003333333333
 
 SUPPORT_CALL = '@........'
