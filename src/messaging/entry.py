@@ -78,11 +78,13 @@ async def accept_or_decline(request: ChatJoinRequest):
             return
     else:
         # public chat; Telegram will not say which link was used
-        monitored_link = MonitoredLink(
-            chat_name=request.chat.title,
-            chat_id=request.chat.id,
-            link=f'https://t.me/{request.chat.username}'
-        )
+        monitored_link = get_link(f'https://t.me/{request.chat.username}')
+        if monitored_link is None:
+            monitored_link = MonitoredLink(
+                chat_name=request.chat.title,
+                chat_id=request.chat.id,
+                link=f'https://t.me/{request.chat.username}'
+            )
 
     bot_user = get_user(request.from_user)
     if bot_user is None or bot_user.status != UserStatus.AUTHORIZED:
