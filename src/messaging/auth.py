@@ -6,7 +6,7 @@ from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome, ad_after_auth
 from ..utils.db import save_user, save_email, save_code, get_user, authorize, UserStatus, BotUser
-from ..utils.config import SUPPORT_IDS, SUPPORT_CHAT_ID
+from ..utils.config import SUPPORT_IDS, SUPPORT_CHAT_ID, BANNED_IDS, BANNED_EMAILS
 from ..utils.mailing import send_code
 from . import logs
 from .long_texts import ASK_FOR_EMAIL
@@ -54,13 +54,24 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
 
 @router.message(EmailStatus.WAITING_FOR_EMAIL, F.chat.type == 'private')
 async def process_email(message: Message, state: FSMContext):
-    if not message.text.endswith('@phystech.edu'):
+    email = message.text.strip().lower()
+
+    if '+' in email:
+        await message.answer('Почта не должна содержать символ "+"')
+        return
+
+    if not email.endswith('@phystech.edu'):
         await message.answer('Не могу разобрать, что-то на физтеховском. '
                              'Попробуйте ещё раз.')
         return
 
-    save_email(message.from_user, message.text)
-    code = send_code(message.text)
+    if message.from_user.id in BANNED_IDS or email in BANNED_EMAILS:
+        await message.answer('Извините, но вы не можете авторизоваться.')
+        logs.malicious_user(message.from_user, email)
+        return
+
+    save_email(message.from_user, email)
+    code = send_code(email)
 
     if code is None:
         await message.answer('Не удалось отправить код. Админы уведомлены о проблеме. '
