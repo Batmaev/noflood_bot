@@ -32,13 +32,19 @@ class BotUser(Base):
     username = Column(Text)
     first_name = Column(Text)
     last_name = Column(Text)
-    email = Column(Text)
+    email = Column(Text, index=True)
     code = Column(Text)
     status = Column(Enum(UserStatus))
     utm_source_id = Column(Text, ForeignKey(MonitoredLink.link))
     utm_source = relationship(MonitoredLink)
     created_at = Column(DateTime, server_default=func.now()) # pylint: disable=not-callable
     last_ad_time = Column(DateTime, default=datetime.datetime(1970, 1, 1))
+
+    @property
+    def full_name(self) -> str:
+        if self.last_name:
+            return f'{self.first_name} {self.last_name}'
+        return self.first_name
 
 
 
@@ -77,6 +83,10 @@ def save_email(user: User, email: str):
         bot_user.email = email
         bot_user.status = UserStatus.AUTHORIZING
         session.commit()
+
+def get_users_with_email(email: str) -> list[BotUser]:
+    with Session() as session:
+        return session.query(BotUser).filter(BotUser.email == email).all()
 
 def save_code(user: User, code: str):
     with Session() as session:

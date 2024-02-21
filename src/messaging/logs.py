@@ -122,3 +122,15 @@ def malicious_user(user: User, email: str):
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
+
+def email_reuse(user: User, bot_users, email: str):
+    text = '🤔 #email_reuse\n'
+    text += user_html(user)
+    text += f'\n<code>{email}</code>\n\n'
+    text += SUPPORT_CALL
+    text += f'\n\n{len(bot_users)} user(s) with the same email:\n'
+    for bot_user in bot_users:
+        text += f'  - {user_html(bot_user)}\n'
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )

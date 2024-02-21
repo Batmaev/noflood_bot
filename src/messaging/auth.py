@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome, ad_after_auth
-from ..utils.db import save_user, save_email, save_code, get_user, authorize, UserStatus, BotUser
+from ..utils.db import save_user, save_email, get_users_with_email, save_code, get_user, authorize, UserStatus, BotUser
 from ..utils.config import SUPPORT_IDS, SUPPORT_CHAT_ID, BANNED_IDS, BANNED_EMAILS
 from ..utils.mailing import send_code
 from . import logs
@@ -64,6 +64,11 @@ async def process_email(message: Message, state: FSMContext):
         await message.answer('Не могу разобрать, что-то на физтеховском. '
                              'Попробуйте ещё раз.')
         return
+
+    existing_users = get_users_with_email(email)
+    if len(existing_users) > 1 or (len(existing_users) == 1 and
+                                   existing_users[0].id != message.from_user.id):
+        logs.email_reuse(message.from_user, existing_users, email)
 
     if message.from_user.id in BANNED_IDS or email in BANNED_EMAILS:
         await message.answer('Извините, но вы не можете авторизоваться.')
