@@ -6,7 +6,7 @@ from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome, ad_after_auth
 from ..utils.db import save_user, save_email, get_users_with_email, save_code, get_user, authorize, UserStatus, BotUser
-from ..utils.config import SUPPORT_IDS, SUPPORT_CHAT_ID, BANNED_IDS, BANNED_EMAILS
+from ..utils.config import SUPPORT_CHAT_ID, ADMIN_FILTER, BANNED_IDS, BANNED_EMAILS
 from ..utils.mailing import send_code
 from . import logs
 from .long_texts import ASK_FOR_EMAIL, EMAIL_ALREADY_USED
@@ -126,14 +126,8 @@ async def suggest_support(update: ChatMemberUpdated):
     )
 
 
-@router.message(Command('auth'))
+@router.message(Command('auth'), ADMIN_FILTER)
 async def manual_auth(message: Message):
-    is_support_user = message.from_user.id in SUPPORT_IDS
-    is_support_chat = message.sender_chat is not None and message.sender_chat.id == SUPPORT_CHAT_ID
-
-    if not (is_support_user or is_support_chat):
-        await message.answer('Недостаточно прав.')
-        return
 
     if message.reply_to_message is None:
         await message.answer('Ответьте этой командой на сообщение пользователя, '

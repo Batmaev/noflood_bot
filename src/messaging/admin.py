@@ -1,17 +1,15 @@
 import re
 
-from aiogram import Router, Bot, F
+from aiogram import Router, Bot
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest
 
 from ..utils.db import get_all_monitored_chats
-from ..utils.config import BOT_TOKEN, SUPPORT_IDS
+from ..utils.config import BOT_TOKEN, ADMIN_FILTER
 
 router = Router()
 bot = Bot(BOT_TOKEN)
-
-ADMIN_FILTER = F.from_user.id.in_(SUPPORT_IDS)
 
 def find_userid(message: Message):
     # for entity in message.entities:
@@ -75,4 +73,4 @@ async def unban(message: Message):
     if text:
         await message.answer(text)
     else:
-        await message.answer('Пользователя не забанен ни в одном чате')
+        await message.answer('Пользователь не забанен ни в одном чате')
