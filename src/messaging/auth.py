@@ -113,7 +113,7 @@ async def finalize_registration(bot_user: BotUser, message: Message):
     await welcome(message, bot_user.utm_source_id)
 
 
-@router.chat_member(F.chat.id == SUPPORT_CHAT_ID and ChatMemberUpdatedFilter(JOIN_TRANSITION))
+@router.chat_member((F.chat.id == SUPPORT_CHAT_ID) & ChatMemberUpdatedFilter(JOIN_TRANSITION))
 async def suggest_support(update: ChatMemberUpdated):
     mention = update.new_chat_member.user.mention_html()
     await update.answer(

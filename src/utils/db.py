@@ -82,7 +82,6 @@ def save_email(user: User, email: str):
     with Session() as session:
         bot_user = session.query(BotUser).filter(BotUser.id == user.id).first()
         bot_user.email = email
-        bot_user.status = UserStatus.AUTHORIZING
         session.commit()
 
 def get_users_with_email(email: str) -> list[BotUser]:
@@ -131,7 +130,7 @@ def ban_user(user_id: int):
 def unban_user(user_id: int):
     with Session() as session:
         bot_user = session.query(BotUser).filter(BotUser.id == user_id).first()
-        bot_user.status = UserStatus.NOT_AUTHORIZED
+        bot_user.status = UserStatus.AUTHORIZED
         session.commit()
         logs.unban_user(bot_user)
 
