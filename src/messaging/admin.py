@@ -46,7 +46,7 @@ async def chats_of_user_mentioned(user_id: int):
             yield chat, member
 
 
-@router.message(Command('where'), ADMIN_FILTER | F.chat.id == ADMIN_CHAT_ID)
+@router.message(Command('view'), ADMIN_FILTER | (F.chat.id == ADMIN_CHAT_ID))
 async def list_user_chats(message: Message):
     user_id = await find_userid(message)
     if user_id is None:
