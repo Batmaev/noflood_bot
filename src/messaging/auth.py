@@ -6,7 +6,7 @@ from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome, ad_after_auth
 from ..utils.db import save_user, save_email, get_users_with_email, save_code, get_user, authorize, UserStatus, BotUser
-from ..utils.config import SUPPORT_CHAT_ID, ADMIN_FILTER, BANNED_IDS, BANNED_EMAILS
+from ..utils.config import SUPPORT_CHAT_ID, ADMIN_FILTER
 from ..utils.mailing import send_code
 from . import logs
 from .long_texts import ASK_FOR_EMAIL, EMAIL_ALREADY_USED
@@ -113,7 +113,7 @@ async def finalize_registration(bot_user: BotUser, message: Message):
     await welcome(message, bot_user.utm_source_id)
 
 
-@router.chat_member((F.chat.id == SUPPORT_CHAT_ID) & ChatMemberUpdatedFilter(JOIN_TRANSITION))
+@router.chat_member(F.chat.id == SUPPORT_CHAT_ID, ChatMemberUpdatedFilter(JOIN_TRANSITION))
 async def suggest_support(update: ChatMemberUpdated):
     mention = update.new_chat_member.user.mention_html()
     await update.answer(
