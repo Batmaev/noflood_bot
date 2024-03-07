@@ -23,7 +23,3 @@ ADMIN_FILTER = \
     F.from_user.id.in_(SUPPORT_IDS) \
     | (F.chat.id == ADMIN_CHAT_ID) \
     | (F.sender_chat.id == SUPPORT_CHAT_ID)
-
-BANNED_IDS = [333333333333]
-
-BANNED_EMAILS = ['evil@phystech.edu']

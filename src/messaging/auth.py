@@ -55,6 +55,7 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
 @router.message(EmailStatus.WAITING_FOR_EMAIL, F.chat.type == 'private')
 async def process_email(message: Message, state: FSMContext):
     email = message.text.strip().lower()
+    save_email(message.from_user, email)
 
     if '+' in email:
         await message.answer('Почта не должна содержать символ "+"')
@@ -72,12 +73,11 @@ async def process_email(message: Message, state: FSMContext):
         await message.answer(EMAIL_ALREADY_USED, parse_mode='HTML', disable_web_page_preview=True)
         return
 
-    if message.from_user.id in BANNED_IDS or email in BANNED_EMAILS:
+    if get_user(message.from_user).status == UserStatus.BANNED:
         await message.answer('Извините, но вы не можете авторизоваться.')
         logs.malicious_user(message.from_user, email)
         return
 
-    save_email(message.from_user, email)
     code = send_code(email)
 
     if code is None:

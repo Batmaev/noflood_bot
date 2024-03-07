@@ -25,6 +25,7 @@ class UserStatus(enum.Enum):
     NOT_AUTHORIZED = enum.auto()
     AUTHORIZING = enum.auto()
     AUTHORIZED = enum.auto()
+    BANNED = enum.auto()
 
 class BotUser(Base):
     __tablename__ = 'bot_users'
@@ -87,7 +88,9 @@ def save_email(user: User, email: str):
 def get_users_with_email(email: str) -> list[BotUser]:
     with Session() as session:
         return session.query(BotUser).filter(
-            (BotUser.email == email) & (BotUser.status == UserStatus.AUTHORIZED)
+            (BotUser.email == email) & (
+                (BotUser.status == UserStatus.AUTHORIZED) | (BotUser.status == UserStatus.BANNED)
+            )
         ).all()
 
 def save_code(user: User, code: str):
@@ -102,12 +105,35 @@ def get_user(user: User) -> BotUser | None:
         bot_user = session.query(BotUser).filter(BotUser.id == user.id).first()
         return bot_user
 
+def get_user_by_id(user_id: int) -> BotUser | None:
+    with Session() as session:
+        bot_user = session.query(BotUser).filter(BotUser.id == user_id).first()
+        return bot_user
+
 def authorize(user: User):
     with Session() as session:
         bot_user = session.query(BotUser).filter(BotUser.id == user.id).first()
         bot_user.status = UserStatus.AUTHORIZED
         session.commit()
         logs.finished_authorization(user, bot_user.utm_source)
+
+def ban_user(user_id: int):
+    with Session() as session:
+        bot_user = session.query(BotUser).filter(BotUser.id == user_id).first()
+        if bot_user is not None:
+            bot_user.status = UserStatus.BANNED
+        else:
+            bot_user = BotUser(first_name='?', id=user_id, status=UserStatus.BANNED)
+            session.add(bot_user)
+        session.commit()
+        logs.ban_user(bot_user)
+
+def unban_user(user_id: int):
+    with Session() as session:
+        bot_user = session.query(BotUser).filter(BotUser.id == user_id).first()
+        bot_user.status = UserStatus.NOT_AUTHORIZED
+        session.commit()
+        logs.unban_user(bot_user)
 
 def update_last_ad_time(user: User):
     with Session() as session:

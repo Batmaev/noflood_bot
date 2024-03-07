@@ -127,10 +127,24 @@ def email_reuse(user: User, bot_users, email: str):
     text = '🤔 #email_reuse\n'
     text += user_html(user)
     text += f'\n<code>{email}</code>\n\n'
-    text += SUPPORT_CALL
-    text += f'\n\n{len(bot_users)} user(s) with the same email:\n'
+    text += 'User(s) with the same email:\n'
     for bot_user in bot_users:
-        text += f'  - {user_html(bot_user)}\n'
+        text += f'- {user_html(bot_user)} ({bot_user.status.name})\n'
+    text += '\n //' + SUPPORT_CALL
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+def ban_user(bot_user):
+    text = '🚫 #ban_user\n'
+    text += user_html(bot_user)
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+def unban_user(bot_user):
+    text = '🕊️ #unban_user\n'
+    text += user_html(bot_user)
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
