@@ -1,6 +1,6 @@
 from aiogram import Router, F
-from aiogram.types import Message, Chat, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from aiogram.filters import CommandStart, Command
+from aiogram.types import Message, Chat, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ChatMemberUpdated
+from aiogram.filters import CommandStart, Command, ChatMemberUpdatedFilter, JOIN_TRANSITION
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
@@ -111,6 +111,19 @@ async def process_code(message: Message, state: FSMContext):
 async def finalize_registration(bot_user: BotUser, message: Message):
     authorize(message.from_user)
     await welcome(message, bot_user.utm_source_id)
+
+
+@router.chat_member(F.chat.id == SUPPORT_CHAT_ID and ChatMemberUpdatedFilter(JOIN_TRANSITION))
+async def suggest_support(update: ChatMemberUpdated):
+    mention = update.new_chat_member.user.mention_html()
+    await update.answer(
+        f'Привет, {mention}!\n\n'
+        'Чаще всего в этот чат попадают люди, у которых нет физтеховской почты. '
+        'Если это твой случай, то то пришли, пожалуйста:\n'
+        '• актуальную почту\n'
+        '• подтверждение, что ты физтех (например, диплом)',
+        parse_mode='HTML'
+    )
 
 
 @router.message(Command('auth'))
