@@ -8,3 +8,4 @@ long_texts.py
 __pycache__
 .vscode
 .DS_Store
+*.session

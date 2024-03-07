@@ -21,5 +21,4 @@ ADMIN_CHAT_ID = -1005555555555
 
 ADMIN_FILTER = \
     F.from_user.id.in_(SUPPORT_IDS) \
-    | (F.chat.id == ADMIN_CHAT_ID) \
     | (F.sender_chat.id == SUPPORT_CHAT_ID)

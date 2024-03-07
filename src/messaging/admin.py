@@ -1,21 +1,34 @@
 import re
 
-from aiogram import Router, Bot
+from aiogram import Router, Bot, F
 from aiogram.types import Message
 from aiogram.filters import Command
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+
+import telethon
 
 from . import logs
 from ..utils import db
-from ..utils.config import BOT_TOKEN, ADMIN_FILTER
+from ..utils.config import BOT_TOKEN, ADMIN_FILTER, ADMIN_CHAT_ID, API_ID, API_HASH
 
 router = Router()
 bot = Bot(BOT_TOKEN)
 
+client = telethon.TelegramClient('session', API_ID, API_HASH)
+
 async def find_userid(message: Message):
-    # for entity in message.entities:
-    #     if entity.type == 'mention':
-    #         return entity.user.id
+    for entity in message.entities:
+        if entity.type == 'mention':
+            username = message.text[entity.offset + 1:entity.offset + entity.length]
+            try:
+                await client.start(bot_token=BOT_TOKEN)
+                user_id = await client.get_peer_id(username)
+                return user_id
+            except ValueError:
+                continue
+            finally:
+                await client.disconnect()
+
     ids = re.findall(r'\d{4,}', message.text or message.caption)
     if ids:
         return int(ids[0])
@@ -26,14 +39,14 @@ async def chats_of_user_mentioned(user_id: int):
     for chat in db.get_all_monitored_chats():
         try:
             member = await bot.get_chat_member(chat.chat_id, user_id)
-        except TelegramBadRequest:
+        except (TelegramBadRequest, TelegramForbiddenError):
             continue
 
         if member.status.value != 'left':
             yield chat, member
 
 
-@router.message(Command('where'), ADMIN_FILTER)
+@router.message(Command('where'), ADMIN_FILTER | F.chat.id == ADMIN_CHAT_ID)
 async def list_user_chats(message: Message):
     user_id = await find_userid(message)
     if user_id is None:
