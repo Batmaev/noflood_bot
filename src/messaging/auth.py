@@ -132,13 +132,7 @@ async def manual_auth(message: Message):
         await message.answer('Пусть пользователь сначала напишет боту /start')
         return
 
-    email = None
-    if message.reply_to_message.entities is not None:
-        for entity in message.reply_to_message.entities:
-            if entity.type == 'email':
-                email = message.reply_to_message.text[entity.offset:entity.offset + entity.length]
-                save_email(message.reply_to_message.from_user, email)
-                break
+    email = get_email(message.reply_to_message)
 
     mock_message = message.reply_to_message.model_copy(
         update = {
@@ -149,6 +143,17 @@ async def manual_auth(message: Message):
     await finalize_registration(bot_user, mock_message)
     await message.answer('Авторизовали.')
     logs.manual_authorization(mock_message.from_user, email)
+
+def get_email(message: Message):
+    if message.entities is not None:
+        for entity in message.entities:
+            if entity.type == 'email':
+                return message.text[entity.offset:entity.offset + entity.length]
+    if message.caption_entities is not None:
+        for entity in message.caption_entities:
+            if entity.type == 'email':
+                return message.caption[entity.offset:entity.offset + entity.length]
+    return None
 
 
 @router.message(F.chat.type == 'private')
