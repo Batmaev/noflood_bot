@@ -86,7 +86,9 @@ def save_email(user: User, email: str):
 
 def get_users_with_email(email: str) -> list[BotUser]:
     with Session() as session:
-        return session.query(BotUser).filter(BotUser.email == email).all()
+        return session.query(BotUser).filter(
+            (BotUser.email == email) & (BotUser.status == UserStatus.AUTHORIZED)
+        ).all()
 
 def save_code(user: User, code: str):
     with Session() as session:

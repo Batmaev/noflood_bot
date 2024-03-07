@@ -9,7 +9,7 @@ from ..utils.db import save_user, save_email, get_users_with_email, save_code, g
 from ..utils.config import SUPPORT_IDS, SUPPORT_CHAT_ID, BANNED_IDS, BANNED_EMAILS
 from ..utils.mailing import send_code
 from . import logs
-from .long_texts import ASK_FOR_EMAIL
+from .long_texts import ASK_FOR_EMAIL, EMAIL_ALREADY_USED
 
 
 router = Router()
@@ -69,6 +69,8 @@ async def process_email(message: Message, state: FSMContext):
     if len(existing_users) > 1 or (len(existing_users) == 1 and
                                    existing_users[0].id != message.from_user.id):
         logs.email_reuse(message.from_user, existing_users, email)
+        await message.answer(EMAIL_ALREADY_USED, parse_mode='HTML', disable_web_page_preview=True)
+        return
 
     if message.from_user.id in BANNED_IDS or email in BANNED_EMAILS:
         await message.answer('Извините, но вы не можете авторизоваться.')
