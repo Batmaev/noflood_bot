@@ -127,3 +127,7 @@ def save_link(link: str, chat_name: str, chat_id: int):
 def get_link(link: str) -> MonitoredLink:
     with Session() as session:
         return session.query(MonitoredLink).filter(MonitoredLink.link == link).first()
+
+def get_all_monitored_chats() -> list[MonitoredLink]:
+    with Session() as session:
+        return session.query(MonitoredLink).all()
