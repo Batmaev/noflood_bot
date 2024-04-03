@@ -46,7 +46,8 @@ async def chats_of_user_mentioned(user_id: int):
             yield chat, member
 
 
-@router.message(Command('view'), ADMIN_FILTER | (F.chat.id == ADMIN_CHAT_ID))
+
+@router.message(Command('where'), ADMIN_FILTER | (F.chat.id == ADMIN_CHAT_ID))
 async def list_user_chats(message: Message):
     user_id = await find_userid(message)
     if user_id is None:
@@ -56,6 +57,7 @@ async def list_user_chats(message: Message):
     if bot_user is not None:
         text = logs.user_html(bot_user)
         text += f'\nEmail: <code>{bot_user.email}</code>'
+        text += f'\nРегистрация: {bot_user.created_at}'
         text += f'\nСтатус в боте: {bot_user.status.name}\n\n'
     else:
         text = f'Пользователь <code>{user_id}</code> не контактировал с ботом\n\n'
