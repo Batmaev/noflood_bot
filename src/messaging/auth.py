@@ -5,11 +5,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome, ad_after_auth
-from ..utils.db import save_user, save_email, get_users_with_email, save_code, get_user, authorize, UserStatus, BotUser
+from ..utils import db
 from ..utils.config import SUPPORT_CHAT_ID, ADMIN_FILTER
 from ..utils.mailing import send_code
 from . import logs
-from .long_texts import ASK_FOR_EMAIL, EMAIL_ALREADY_USED
+from .long_texts import ASK_FOR_EMAIL
 
 
 router = Router()
@@ -30,7 +30,7 @@ async def start(message: Message, state: FSMContext):
         'чаты, каналы и сервисы в телеграме на Физтехе.',
         reply_markup=authorize_keyboard
     )
-    save_user(message.from_user)
+    db.save_user(message.from_user)
     await state.clear()
 
 
@@ -55,7 +55,7 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
 @router.message(EmailStatus.WAITING_FOR_EMAIL, F.chat.type == 'private')
 async def process_email(message: Message, state: FSMContext):
     email = message.text.strip().lower()
-    save_email(message.from_user, email)
+    db.save_email(message.from_user, email)
 
     if '+' in email:
         await message.answer('Почта не должна содержать символ "+"')
@@ -66,16 +66,18 @@ async def process_email(message: Message, state: FSMContext):
                              'Попробуйте ещё раз.')
         return
 
-    existing_users = get_users_with_email(email)
+    existing_users = db.get_users_with_email(email)
     if len(existing_users) > 1 or (len(existing_users) == 1 and
                                    existing_users[0].id != message.from_user.id):
         logs.email_reuse(message.from_user, existing_users, email)
-        await message.answer(EMAIL_ALREADY_USED, parse_mode='HTML', disable_web_page_preview=True)
-        return
 
-    if get_user(message.from_user).status == UserStatus.BANNED:
+    if any(user.status == db.UserStatus.BANNED for user in existing_users):
         await message.answer('Извините, но вы не можете авторизоваться.')
         logs.malicious_user(message.from_user, email)
+
+        bot_user = db.get_user(message.from_user)
+        if bot_user.status != db.UserStatus.BANNED:
+            db.ban_user(message.from_user.id)
         return
 
     code = send_code(email)
@@ -85,7 +87,7 @@ async def process_email(message: Message, state: FSMContext):
                              'Спустя время, попробуйте ещё раз.')
         return
 
-    save_code(message.from_user, code)
+    db.save_code(message.from_user, code)
 
     await message.answer(f'Мы отправили письмо на почту <code>{message.text}</code>. '
                          'Пришлите код сообщением сюда.\n\n'
@@ -98,7 +100,7 @@ async def process_email(message: Message, state: FSMContext):
 
 @router.message(EmailStatus.WAITING_FOR_CODE, F.chat.type == 'private')
 async def process_code(message: Message, state: FSMContext):
-    bot_user = get_user(message.from_user)
+    bot_user = db.get_user(message.from_user)
 
     if bot_user.code != message.text:
         await message.answer('Где-то ошибка, введите ещё раз, пожалуйста.')
@@ -108,8 +110,8 @@ async def process_code(message: Message, state: FSMContext):
     await state.clear()
 
 
-async def finalize_registration(bot_user: BotUser, message: Message):
-    authorize(message.from_user)
+async def finalize_registration(bot_user: db.BotUser, message: Message):
+    db.authorize(message.from_user)
     await welcome(message, bot_user.utm_source_id)
 
 
@@ -134,7 +136,7 @@ async def manual_auth(message: Message):
                              'которого нужно авторизовать.')
         return
 
-    bot_user = get_user(message.reply_to_message.from_user)
+    bot_user = db.get_user(message.reply_to_message.from_user)
     if bot_user is None:
         await message.answer('Пусть пользователь сначала напишет боту /start')
         return
@@ -165,11 +167,11 @@ def get_email(message: Message):
 
 @router.message(F.chat.type == 'private')
 async def default_message(message: Message, state: FSMContext):
-    bot_user = get_user(message.from_user)
+    bot_user = db.get_user(message.from_user)
 
     if bot_user is None:
         await start(message, state)
-    elif bot_user.status != UserStatus.AUTHORIZED:
+    elif bot_user.status != db.UserStatus.AUTHORIZED:
         await ask_for_email(message, state)
     else:
         await ad_after_auth(message)
