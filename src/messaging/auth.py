@@ -142,6 +142,7 @@ async def manual_auth(message: Message):
         return
 
     email = get_email(message.reply_to_message)
+    db.save_email(message.reply_to_message.from_user, email)
 
     mock_message = message.reply_to_message.model_copy(
         update = {
