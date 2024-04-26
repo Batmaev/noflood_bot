@@ -181,3 +181,54 @@ async def check_status(message: Message):
         case db.UserStatus.BANNED:
             await message.reply('Пользователь забанен админами бота')
             return
+
+
+@router.message(Command('strangers'), ADMIN_FILTER)
+async def list_strangers(message: Message):
+    chat_link = message.text.split()[1]
+    monitored_link = db.get_link(chat_link)
+
+    if monitored_link is None:
+        await message.reply('Чат не отслеживается')
+        return
+
+    text = f'Неавторизованные в {monitored_link.chat_name}:\n'
+
+    await client.start(bot_token=BOT_TOKEN)
+
+    i = 1
+    I_MAX = 100
+    async for member in client.iter_participants(monitored_link.chat_id):
+        if member.bot:
+            continue
+
+        if member.username:
+            mention_str = f'@{member.username}'
+        else:
+            if member.last_name:
+                full_name = f'{member.first_name} {member.last_name}'
+            else:
+                full_name = member.first_name
+            mention_str = f'<a href="tg://user?id={member.id}">{full_name}</a>'
+
+        mention_str += f' <code>{member.id}</code>'
+
+        bot_user = db.get_user_by_id(member.id)
+
+        if bot_user is None:
+            text += f'{i}. {mention_str} STRANGER\n'
+        elif bot_user.status != db.UserStatus.AUTHORIZED:
+            text += f'{i}. {mention_str} {bot_user.status.name}\n'
+        else:
+            continue
+
+        i += 1
+
+        if i % I_MAX == 0:
+            await message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
+            text = ''
+
+    if text != '':
+        await message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
+
+    await client.disconnect()
