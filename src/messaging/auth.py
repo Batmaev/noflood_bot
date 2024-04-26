@@ -157,7 +157,7 @@ async def manual_auth(message: Message):
 
 
 
-@router.business_message(F.text.lower().startswith('авторизуем'), ADMIN_FILTER)
+@router.business_message(F.text.lower().endswith('авторизуем'), ADMIN_FILTER)
 async def manual_auth2(message: Message):
     if message.reply_to_message is not None:
         email = get_email(message.reply_to_message)
