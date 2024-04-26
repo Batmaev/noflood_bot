@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, Bot, F
 from aiogram.types import Message, Chat, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ChatMemberUpdated
 from aiogram.filters import CommandStart, Command, ChatMemberUpdatedFilter, JOIN_TRANSITION
 from aiogram.fsm.context import FSMContext
@@ -6,12 +6,13 @@ from aiogram.fsm.state import StatesGroup, State
 
 from .ads import welcome, ad_after_auth
 from ..utils import db
-from ..utils.config import SUPPORT_CHAT_ID, ADMIN_FILTER
+from ..utils.config import SUPPORT_CHAT_ID, BOT_TOKEN, ADMIN_FILTER
 from ..utils.mailing import send_code
 from . import logs
 from .long_texts import ASK_FOR_EMAIL
 
 
+bot = Bot(BOT_TOKEN)
 router = Router()
 
 
@@ -152,6 +153,33 @@ async def manual_auth(message: Message):
 
     await finalize_registration(bot_user, mock_message)
     await message.answer('Авторизовали.')
+    logs.manual_authorization(mock_message.from_user, email)
+
+
+
+@router.business_message(F.text.lower().startswith('авторизуем'), ADMIN_FILTER)
+async def manual_auth2(message: Message):
+    if message.reply_to_message is not None:
+        email = get_email(message.reply_to_message)
+        db.save_email(message.reply_to_message.from_user, email)
+    else:
+        email = None
+
+    bot_user = db.get_user_by_id(message.chat.id)
+    if bot_user is None:
+        await message.answer('Пожалуйста, сначала напишите /start в личные сообщения @phystech_bot')
+        return
+
+    mock_message = message.model_copy(
+        update = {
+            'business_connection_id': None,
+            'from_user': message.chat,
+        }
+    )
+
+    await finalize_registration(bot_user, mock_message)
+    await bot.send_message(message.from_user.id,
+                           f'Авторизовали @{mock_message.from_user.username or ''} {email or ''}')
     logs.manual_authorization(mock_message.from_user, email)
 
 def get_email(message: Message):
