@@ -6,6 +6,7 @@ from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
 import telethon
+from telethon.errors.rpcerrorlist import UsernameInvalidError
 
 from . import logs
 from ..utils import db
@@ -16,7 +17,11 @@ bot = Bot(BOT_TOKEN)
 
 client = telethon.TelegramClient('session', API_ID, API_HASH)
 
-async def find_userid(message: Message):
+class NoUserSpecifiedError(Exception):
+    pass
+
+
+async def find_userid(message: Message) -> int | Exception:
     for entity in message.entities:
         if entity.type == 'mention':
             username = message.text[entity.offset + 1:entity.offset + entity.length]
@@ -24,15 +29,21 @@ async def find_userid(message: Message):
                 await client.start(bot_token=BOT_TOKEN)
                 user_id = await client.get_peer_id(username)
                 return user_id
-            except ValueError:
-                continue
+            except UsernameInvalidError as error:
+                return error
             finally:
                 await client.disconnect()
 
     ids = re.findall(r'\d{4,}', message.text or message.caption)
     if ids:
         return int(ids[0])
-    await message.answer('Не удалось распарсить id пользователя.')
+
+    if message.reply_to_message:
+        if message.reply_to_message.forward_from:
+            return message.reply_to_message.forward_from.id
+        return message.reply_to_message.from_user.id
+
+    return NoUserSpecifiedError()
 
 
 async def chats_of_user_mentioned(user_id: int):
@@ -50,7 +61,16 @@ async def chats_of_user_mentioned(user_id: int):
 @router.message(Command('where'), ADMIN_FILTER | (F.chat.id == ADMIN_CHAT_ID))
 async def list_user_chats(message: Message):
     user_id = await find_userid(message)
-    if user_id is None:
+    if isinstance(user_id, UsernameInvalidError):
+        await message.reply('Юзернейм никому не принадлежит')
+        return
+    if isinstance(user_id, NoUserSpecifiedError):
+        await message.reply(
+            'Использование:\n'
+            '• /where @username\n'
+            '• /where 1234567890\n'
+            '• или ответом на сообщение пользователя'
+        )
         return
 
     bot_user = db.get_user_by_id(user_id)
@@ -71,7 +91,16 @@ async def list_user_chats(message: Message):
 @router.message(Command('ban'), ADMIN_FILTER)
 async def ban(message: Message):
     user_id = await find_userid(message)
-    if user_id is None:
+    if isinstance(user_id, UsernameInvalidError):
+        await message.reply('Юзернейм никому не принадлежит')
+        return
+    if isinstance(user_id, NoUserSpecifiedError):
+        await message.reply(
+            'Использование:\n'
+            '• /ban @username\n'
+            '• /ban 1234567890\n'
+            '• или ответом на сообщение пользователя'
+        )
         return
 
     db.ban_user(user_id)
@@ -93,7 +122,16 @@ async def ban(message: Message):
 @router.message(Command('unban'), ADMIN_FILTER)
 async def unban(message: Message):
     user_id = await find_userid(message)
-    if user_id is None:
+    if isinstance(user_id, UsernameInvalidError):
+        await message.reply('Юзернейм никому не принадлежит')
+        return
+    if isinstance(user_id, NoUserSpecifiedError):
+        await message.reply(
+            'Использование:\n'
+            '• /unban @username\n'
+            '• /unban 1234567890\n'
+            '• или ответом на сообщение пользователя'
+        )
         return
 
     db.unban_user(user_id)
@@ -110,3 +148,36 @@ async def unban(message: Message):
         await message.answer(text)
     else:
         await message.answer('Пользователь не был забанен ни в одном чате')
+
+
+@router.message(Command('is'))
+async def check_status(message: Message):
+    user_id = await find_userid(message)
+    if isinstance(user_id, UsernameInvalidError):
+        await message.reply('Юзернейм никому не принадлежит')
+        return
+    if isinstance(user_id, NoUserSpecifiedError):
+        await message.reply(
+            'Использование:\n'
+            '• /is @username\n'
+            '• /is 1234567890\n'
+            '• или ответом на сообщение пользователя'
+        )
+        return
+
+    bot_user = db.get_user_by_id(user_id)
+
+    if bot_user is None:
+        await message.reply('Этот пользователь не регистрировался в боте')
+        return
+
+    match bot_user.status:
+        case db.UserStatus.NOT_AUTHORIZED | db.UserStatus.AUTHORIZING:
+            await message.reply('Пользователь начинал регистрацию в боте, но не завершил её')
+            return
+        case db.UserStatus.AUTHORIZED:
+            await message.reply('Пользователь подтвердил свой статус физтеха')
+            return
+        case db.UserStatus.BANNED:
+            await message.reply('Пользователь забанен админами бота')
+            return
