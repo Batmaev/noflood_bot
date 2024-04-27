@@ -148,3 +148,19 @@ def unban_user(bot_user):
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
+
+
+def sent_notification(bot_user):
+    text = '🪶 #sent_notification\n'
+    text += user_html(bot_user)
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+def error_notification(bot_user, error: Exception):
+    text = '📭 #error_notification\n'
+    text += user_html(bot_user)
+    text += f'\n{error}'
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
