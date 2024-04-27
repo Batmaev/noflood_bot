@@ -38,12 +38,13 @@ async def notify_users_of(chat_id: int, text: str, limit: int = 100):
         try:
             await bot.send_message(bot_user.id, text, parse_mode='HTML')
             db_addons.save_notification(bot_user)
-            logs.sent_notification(bot_user)
-            await asyncio.sleep(2)
+            logs.sent_notification(bot_user, text)
             i += 1
 
         except (TelegramBadRequest, TelegramForbiddenError) as error:
             db_addons.save_notification_error(bot_user, str(error))
             logs.error_notification(bot_user, error)
+
+        await asyncio.sleep(3.1)
 
     await client.disconnect()

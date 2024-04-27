@@ -5,7 +5,7 @@ import html
 from aiogram import Bot
 from aiogram.types import User, Chat, ErrorEvent
 
-from ..utils.config import BOT_TOKEN, LOGS_CHAT_ID, SUPPORT_CALL
+from ..utils.config import BOT_TOKEN, LOGS_CHAT_ID, NOTIFICATIONS_LOGS_CHAT_ID, SUPPORT_CALL
 
 bot = Bot(BOT_TOKEN)
 
@@ -150,11 +150,12 @@ def unban_user(bot_user):
     )
 
 
-def sent_notification(bot_user):
+def sent_notification(bot_user, content: str):
     text = '🪶 #sent_notification\n'
     text += user_html(bot_user)
+    text += '\n\n' + content
     asyncio.create_task(
-        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+        bot.send_message(NOTIFICATIONS_LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
 def error_notification(bot_user, error: Exception):
@@ -162,5 +163,5 @@ def error_notification(bot_user, error: Exception):
     text += user_html(bot_user)
     text += f'\n{error}'
     asyncio.create_task(
-        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+        bot.send_message(NOTIFICATIONS_LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
