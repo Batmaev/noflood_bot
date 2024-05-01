@@ -56,6 +56,14 @@ def save_notification_error(bot_user: BotUser, text: str):
         session.commit()
 
 
+def was_error_with(bot_user: BotUser):
+    with Session() as session:
+        notification_error = session.query(NotificationErrors).filter(
+            NotificationErrors.user_id == bot_user.id
+        ).first()
+        return notification_error is not None
+
+
 
 
 if __name__ == '__main__':

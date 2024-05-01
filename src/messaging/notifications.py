@@ -35,6 +35,9 @@ async def notify_users_of(chat_id: int, text: str, limit: int = 100):
         if notified_user is not None:
             continue
 
+        if db_addons.was_error_with(bot_user):
+            continue
+
         try:
             await bot.send_message(bot_user.id, text, parse_mode='HTML')
             db_addons.save_notification(bot_user)
