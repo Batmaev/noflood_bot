@@ -183,7 +183,7 @@ async def check_status(message: Message):
             return
 
 
-@router.message(Command('strangers'), ADMIN_FILTER)
+@router.message(Command('strangers'), F.chat.type == 'private')
 async def list_strangers(message: Message):
     chat_link = message.text.split()[1]
     monitored_link = db.get_link(chat_link)
@@ -217,10 +217,12 @@ async def list_strangers(message: Message):
 
         if bot_user is None:
             text += f'{i}. {mention_str} STRANGER\n'
-        elif bot_user.status != db.UserStatus.AUTHORIZED:
-            text += f'{i}. {mention_str} {bot_user.status.name}\n'
-        else:
+        elif bot_user.status == db.UserStatus.AUTHORIZED:
             continue
+        elif bot_user.status == db.UserStatus.NOT_AUTHORIZED:
+            text += f'{i}. {mention_str} AUTHORIZING\n'
+        else:
+            text += f'{i}. {mention_str} {bot_user.status.name}\n'
 
         i += 1
 
