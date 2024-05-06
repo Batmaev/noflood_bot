@@ -51,3 +51,31 @@ async def notify_users_of(chat_id: int, text: str, limit: int = 100):
         await asyncio.sleep(3.1)
 
     await client.disconnect()
+
+
+
+
+async def make_threatening_post_at(chat_id: int, text: str, starter = '\n', joiner = '.', ender = ''):
+    await client.start(bot_token=BOT_TOKEN)
+    members = await client.get_participants(chat_id)
+
+    not_authorized = []
+    for member in members:
+        if member.bot:
+            continue
+
+        bot_user = db.get_user_by_id(member.id)
+
+        if bot_user is not None and (
+            bot_user.status == db.UserStatus.AUTHORIZED or bot_user.status == db.UserStatus.BANNED
+        ):
+            continue
+
+        not_authorized.append(member)
+
+    print(len(not_authorized))
+
+    notification_string = starter + ''.join([f'<a href="tg://user?id={user.id}">{joiner}</a>' for user in not_authorized]) + ender
+    await bot.send_message(chat_id, text + notification_string, parse_mode='HTML', disable_web_page_preview=True)
+
+    await client.disconnect()
