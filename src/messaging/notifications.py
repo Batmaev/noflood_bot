@@ -55,7 +55,7 @@ async def notify_users_of(chat_id: int, text: str, limit: int = 100):
 
 
 
-async def make_threatening_post_at(chat_id: int, text: str, starter = '\n', joiner = '.', ender = ''):
+async def make_threatening_post_at(chat_id: int, text: str, starter = '', joiner = '\u200B', ender = ''):
     await client.start(bot_token=BOT_TOKEN)
     members = await client.get_participants(chat_id)
 
@@ -66,9 +66,7 @@ async def make_threatening_post_at(chat_id: int, text: str, starter = '\n', join
 
         bot_user = db.get_user_by_id(member.id)
 
-        if bot_user is not None and (
-            bot_user.status == db.UserStatus.AUTHORIZED or bot_user.status == db.UserStatus.BANNED
-        ):
+        if bot_user is not None and bot_user.status in (db.UserStatus.AUTHORIZED, db.UserStatus.BANNED):
             continue
 
         not_authorized.append(member)
