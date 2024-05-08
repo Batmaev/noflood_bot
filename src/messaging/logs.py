@@ -16,7 +16,7 @@ async def error_handler(event: ErrorEvent):
     text += f'<b>{event.exception}</b>\n\n'
     tb = html.escape(''.join(traceback.format_tb(event.exception.__traceback__)[-1]))
     text += f'<pre><code class="language-python">{tb}</code></pre>\n'
-    update = html.escape(event.update.model_dump_json(exclude_none=True))
+    update = html.escape(event.update.model_dump_json(exclude_defaults=True))
     text += f'<pre><code class="language-json">{update}</code></pre>'
 
     asyncio.create_task(
