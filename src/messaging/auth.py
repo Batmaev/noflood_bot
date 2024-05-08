@@ -27,6 +27,7 @@ authorize_keyboard = InlineKeyboardMarkup(
 async def start(message: Message, state: FSMContext):
     bot_user = db.get_user(message.from_user)
     if bot_user is not None and bot_user.status == db.UserStatus.AUTHORIZED:
+        await message.answer('Вы уже авторизованы :)')
         await ad_after_auth(message)
         return
 
