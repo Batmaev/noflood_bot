@@ -7,7 +7,7 @@ import telethon
 
 from . import logs
 from ..utils import db, db_addons
-from ..utils.config import BOT_TOKEN, API_ID, API_HASH
+from ..utils.config import BOT_TOKEN, API_ID, API_HASH, SUPPORT_IDS
 
 bot = Bot(BOT_TOKEN)
 
@@ -59,21 +59,32 @@ async def make_threatening_post_at(chat_id: int, text: str, starter = '', joiner
     await client.start(bot_token=BOT_TOKEN)
     members = await client.get_participants(chat_id)
 
-    not_authorized = []
-    for member in members:
-        if member.bot:
-            continue
-
-        bot_user = db.get_user_by_id(member.id)
-
-        if bot_user is not None and bot_user.status in (db.UserStatus.AUTHORIZED, db.UserStatus.BANNED):
-            continue
-
-        not_authorized.append(member)
-
+    not_authorized = [member for member in members if should_notify(member)]
     print(len(not_authorized))
 
-    notification_string = starter + ''.join([f'<a href="tg://user?id={user.id}">{joiner}</a>' for user in not_authorized]) + ender
-    await bot.send_message(chat_id, text + notification_string, parse_mode='HTML', disable_web_page_preview=True)
+    mentions = [f'<a href="tg://user?id={user.id}">{joiner}</a>' for user in not_authorized]
+
+    text = text + starter + ''.join(mentions) + ender
+
+    msg = await bot.send_message(chat_id, text, parse_mode='HTML', disable_web_page_preview=True)
 
     await client.disconnect()
+
+    return msg, mentions
+
+
+def should_notify(member):
+    if member.bot:
+        return False
+
+    if member.id in SUPPORT_IDS:
+        return True
+
+    bot_user = db.get_user_by_id(member.id)
+    if bot_user is None:
+        return True
+
+    if bot_user.status in (db.UserStatus.AUTHORIZED, db.UserStatus.BANNED):
+        return False
+    else:
+        return True
