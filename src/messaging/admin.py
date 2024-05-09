@@ -185,6 +185,11 @@ async def check_status(message: Message):
 
 @router.message(Command('strangers'), F.chat.type == 'private')
 async def list_strangers(message: Message):
+    admin = await bot.get_chat_member(ADMIN_CHAT_ID, message.from_user.id)
+    if admin.status in ('kicked', 'left'):
+        await message.reply('Вам недоступна эта команда')
+        return
+
     chat_link = message.text.split()[1]
     monitored_link = db.get_link(chat_link)
 

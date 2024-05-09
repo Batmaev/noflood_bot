@@ -62,7 +62,6 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
 @router.message(EmailStatus.WAITING_FOR_EMAIL, F.chat.type == 'private')
 async def process_email(message: Message, state: FSMContext):
     email = message.text.strip().lower()
-    db.save_email(message.from_user, email)
 
     if '+' in email:
         await message.answer('Почта не должна содержать символ "+"')
@@ -73,7 +72,9 @@ async def process_email(message: Message, state: FSMContext):
                              'Попробуйте ещё раз.')
         return
 
+    db.save_email(message.from_user, email)
     existing_users = db.get_users_with_email(email)
+
     if len(existing_users) > 1 or (len(existing_users) == 1 and
                                    existing_users[0].id != message.from_user.id):
         logs.email_reuse(message.from_user, existing_users, email)
