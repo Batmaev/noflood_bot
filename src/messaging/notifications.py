@@ -66,7 +66,7 @@ async def make_threatening_post_at(chat_id: int, text: str, starter = '', joiner
 
     text = text + starter + ''.join(mentions) + ender
 
-    msg = await bot.send_message(chat_id, text, parse_mode='HTML', disable_web_page_preview=True)
+    msg = await bot.send_message(chat_id, text, parse_mode='HTML')
 
     await client.disconnect()
 
