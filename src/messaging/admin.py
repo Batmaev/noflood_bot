@@ -193,11 +193,15 @@ async def list_strangers(message: Message):
         await message.reply('Вам недоступна эта команда')
         return
 
+    if len(message.text.split()) != 2:
+        await message.reply('Использование: /strangers https://t.me/+chat_link')
+        return
+
     chat_link = message.text.split()[1]
     monitored_link = db.get_link(chat_link)
 
     if monitored_link is None:
-        await message.reply('Чат не отслеживается')
+        await message.reply('Ссылка не отслеживается')
         return
 
     text = f'Неавторизованные в {monitored_link.chat_name}:\n'
