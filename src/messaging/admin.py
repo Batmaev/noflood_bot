@@ -152,6 +152,11 @@ async def unban(message: Message):
 
 @router.message(Command('is'))
 async def check_status(message: Message):
+    self_bot_user = db.get_user_by_id(message.from_user.id)
+    if self_bot_user is None or self_bot_user.status != db.UserStatus.AUTHORIZED:
+        await message.reply('Вы не авторизованы и не можете использовать эту команду')
+        return
+
     user_id = await find_userid(message)
     if isinstance(user_id, UsernameInvalidError):
         await message.reply('Юзернейм никому не принадлежит')
@@ -169,18 +174,16 @@ async def check_status(message: Message):
 
     if bot_user is None:
         await message.reply('Этот пользователь не регистрировался в боте')
-        return
+    else:
+        match bot_user.status:
+            case db.UserStatus.NOT_AUTHORIZED | db.UserStatus.AUTHORIZING:
+                await message.reply('Пользователь начинал регистрацию в боте, но не завершил её')
+            case db.UserStatus.AUTHORIZED:
+                await message.reply('Пользователь подтвердил свой статус физтеха')
+            case db.UserStatus.BANNED:
+                await message.reply('Пользователь забанен админами бота')
 
-    match bot_user.status:
-        case db.UserStatus.NOT_AUTHORIZED | db.UserStatus.AUTHORIZING:
-            await message.reply('Пользователь начинал регистрацию в боте, но не завершил её')
-            return
-        case db.UserStatus.AUTHORIZED:
-            await message.reply('Пользователь подтвердил свой статус физтеха')
-            return
-        case db.UserStatus.BANNED:
-            await message.reply('Пользователь забанен админами бота')
-            return
+    logs.status_checked(message.from_user, bot_user, user_id)
 
 
 @router.message(Command('strangers'), F.chat.type == 'private')
@@ -239,3 +242,5 @@ async def list_strangers(message: Message):
         await message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
 
     await client.disconnect()
+
+    logs.strangers_listed(message.from_user, monitored_link, i)

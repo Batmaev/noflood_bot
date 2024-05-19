@@ -165,3 +165,28 @@ def error_notification(bot_user, error: Exception):
     asyncio.create_task(
         bot.send_message(NOTIFICATIONS_LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
+
+def status_checked(user, bot_user, user_id):
+    text = '🔍 #status_checked\n'
+    text += user_html(user)
+    text += '\n\nhas checked status of\n'
+
+    if bot_user is None:
+        text += f'<code>{user_id}</code>\n'
+        text += 'User not found in DB'
+    else:
+        text += user_html(bot_user)
+        text += f'\n({bot_user.status.name})'
+
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+def strangers_listed(user, monitored_link, n):
+    text = '🕵️‍♂️ #strangers_listed\n'
+    text += user_html(user)
+    text += f'\n\nlisted strangers in {chat_link_html(monitored_link)}'
+    text += f'\nresult: {n}'
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
