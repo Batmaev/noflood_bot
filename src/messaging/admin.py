@@ -29,12 +29,12 @@ async def find_userid(message: Message) -> int | Exception:
                 await client.start(bot_token=BOT_TOKEN)
                 user_id = await client.get_peer_id(username)
                 return user_id
-            except UsernameInvalidError as error:
+            except (UsernameInvalidError, ValueError) as error:
                 return error
             finally:
                 await client.disconnect()
 
-    ids = re.findall(r'\d{4,}', message.text or message.caption)
+    ids = re.findall(r'\d{4,17}', message.text or message.caption)
     if ids:
         return int(ids[0])
 
@@ -61,7 +61,7 @@ async def chats_of_user_mentioned(user_id: int):
 @router.message(Command('where'), ADMIN_FILTER | (F.chat.id == ADMIN_CHAT_ID))
 async def list_user_chats(message: Message):
     user_id = await find_userid(message)
-    if isinstance(user_id, UsernameInvalidError):
+    if isinstance(user_id, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
     if isinstance(user_id, NoUserSpecifiedError):
@@ -91,7 +91,7 @@ async def list_user_chats(message: Message):
 @router.message(Command('ban'), ADMIN_FILTER)
 async def ban(message: Message):
     user_id = await find_userid(message)
-    if isinstance(user_id, UsernameInvalidError):
+    if isinstance(user_id, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
     if isinstance(user_id, NoUserSpecifiedError):
@@ -122,7 +122,7 @@ async def ban(message: Message):
 @router.message(Command('unban'), ADMIN_FILTER)
 async def unban(message: Message):
     user_id = await find_userid(message)
-    if isinstance(user_id, UsernameInvalidError):
+    if isinstance(user_id, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
     if isinstance(user_id, NoUserSpecifiedError):
@@ -158,7 +158,7 @@ async def check_status(message: Message):
         return
 
     user_id = await find_userid(message)
-    if isinstance(user_id, UsernameInvalidError):
+    if isinstance(user_id, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
     if isinstance(user_id, NoUserSpecifiedError):
