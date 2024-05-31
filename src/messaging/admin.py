@@ -269,11 +269,15 @@ async def select_chat(message: Message, state: FSMContext):
     if admin.status in ('kicked', 'left'):
         return
 
-    chats = {
-        chat.chat_id: chat 
-        for chat in db.get_all_monitored_chats()
-        if (await bot.get_chat_member(chat.chat_id, admin_id)).status in ('creator', 'administrator')
-    }
+    chats = {}
+    for chat in db.get_all_monitored_chats():
+        try:
+            member = await bot.get_chat_member(chat.chat_id, admin_id)
+        except (TelegramBadRequest, TelegramForbiddenError):
+            continue
+
+        if member.status in ('creator', 'administrator'):
+            chats[chat.chat_id] = chat
 
     if not chats:
         await message.reply('Нет чатов, где вы являетесь админом')
@@ -307,8 +311,8 @@ async def send_file_for_review(update: CallbackQuery, state: FSMContext):
 
     me = await bot.get_me()
     my_rights = await bot.get_chat_member(chat_id, me.id)
-    if not my_rights.can_restrict_members:
-        await update.answer('Разрешите боту банить пользователей и нажмите на кнопку еще раз')
+    if not my_rights.status == 'admin' and my_rights.can_restrict_members:
+        await update.message.answer('Разрешите боту банить пользователей и нажмите на кнопку еще раз')
         return
 
     strangers = []
