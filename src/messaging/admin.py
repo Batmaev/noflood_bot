@@ -1,12 +1,17 @@
 import re
 
 from aiogram import Router, Bot, F
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, FSInputFile
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.storage.memory import MemoryStorage
 
 import telethon
 from telethon.errors.rpcerrorlist import UsernameInvalidError
+
+import pandas as pd
 
 from . import logs
 from ..utils import db
@@ -248,3 +253,192 @@ async def list_strangers(message: Message):
     await client.disconnect()
 
     logs.strangers_listed(message.from_user, monitored_link, i)
+
+
+
+class ReviewStep(StatesGroup):
+    SELECTING_CHAT = State()
+    WAITING_FOR_FILE = State()
+    WAITING_FOR_CONFIRMATION = State()
+
+
+
+@router.message(Command('clean'), F.chat.type == 'private')
+async def select_chat(message: Message, state: FSMContext):
+    admin_id = message.from_user.id
+    admin = await bot.get_chat_member(ADMIN_CHAT_ID, admin_id)
+    if admin.status in ('kicked', 'left'):
+        return
+
+    chats = {
+        chat.chat_id: chat 
+        for chat in db.get_all_monitored_chats()
+        if (await bot.get_chat_member(chat.chat_id, admin_id)).status in ('creator', 'administrator')
+    }
+
+    if not chats:
+        await message.reply('Нет чатов, где вы являетесь админом')
+        return
+
+    await message.answer(
+        'Выберите чат, из которого вы хотели бы удалить неавторизованных пользователей. '
+        'Бот пришлет файл со списком участников на проверку.',
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=chat.chat_name,
+                        callback_data=f'clean {chat.chat_id} {chat.link}'
+                    )
+                ]
+                for chat in chats.values()
+            ]
+        )
+    )
+
+    await state.set_state(ReviewStep.SELECTING_CHAT)
+
+
+
+@router.callback_query(F.data.startswith('clean'), F.message.chat.type == 'private')
+async def send_file_for_review(update: CallbackQuery, state: FSMContext):
+    chat_id = int(update.data.split()[1])
+    chat_link = update.data.split()[2]
+    await state.update_data(chat_id=chat_id, chat_link=chat_link)
+
+    me = await bot.get_me()
+    my_rights = await bot.get_chat_member(chat_id, me.id)
+    if not my_rights.can_restrict_members:
+        await update.answer('Разрешите боту банить пользователей и нажмите на кнопку еще раз')
+        return
+
+    strangers = []
+    await client.start(bot_token=BOT_TOKEN)
+    async for member in client.iter_participants(chat_id):
+        if member.bot:
+            continue
+
+        bot_user = db.get_user_by_id(member.id)
+        if bot_user is not None and bot_user.status == db.UserStatus.AUTHORIZED:
+            continue
+
+        if bot_user is None:
+            status = 'STRANGER'
+        else:
+            status = bot_user.status.name
+
+        if status == 'NOT_AUTHORIZED':
+            status = 'AUTHORIZING'
+
+        strangers.append({
+            'id': member.id,
+            'ban?': '',
+            'username': f'=HYPERLINK("https://t.me/{member.username}", "{member.username}")'
+                        if member.username else '',
+            'first_name': member.first_name,
+            'last_name': member.last_name,
+            'status': status
+        })
+    await client.disconnect()
+
+    df = pd.DataFrame(strangers)
+    df.to_excel(f'{chat_id}.xlsx', index=False)
+
+    await update.message.answer_document(
+        document=FSInputFile(f'{chat_id}.xlsx'),
+        caption='Файл с неавторизованными участниками чата.\n\n'
+                'Пожалуйста, отредактируйте его и отправьте обратно. '
+                'Если пользователя нужно удалить из чата, то напишите TRUE в столбце "ban?".\n\n'
+                'Если написать FALSE, оставить ячейку пустой или удалить строку целиком, '
+                'то мы оставим пользователя в чате.'
+    )
+
+    await state.set_state(ReviewStep.WAITING_FOR_FILE)
+
+
+@router.message(F.document, F.chat.type == 'private', ReviewStep.WAITING_FOR_FILE)
+async def get_file(message: Message, state: FSMContext):
+    file_id = message.document.file_id
+    file = await bot.get_file(file_id)
+
+    chat_id = (await state.get_data())['chat_id']
+    fname = f'{chat_id}_rev.xlsx'
+
+    await bot.download_file(file.file_path, fname)
+    df = pd.read_excel(fname)
+    df['ban?'] = df['ban?'].fillna(False).astype(bool)
+    df = df[df['ban?']]
+    await state.update_data(ids_to_ban = df['id'])
+
+    chat = db.get_link((await state.get_data())['chat_link'])
+
+    await message.answer(
+        f'Исключить {len(df)} пользователей из {chat.chat_name}?',
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(
+                    text='Да',
+                    callback_data='confirm clean'
+                )],
+                [InlineKeyboardButton(
+                    text='Нет, отправить другой файл',
+                    callback_data='resend clean file'
+                )],
+                [InlineKeyboardButton(
+                    text='Нет, остановить процесс',
+                    callback_data='cancel clean'
+                )],
+            ]
+        )
+    )
+
+    await state.set_state(ReviewStep.WAITING_FOR_CONFIRMATION)
+
+
+@router.callback_query(F.data == 'cancel clean', F.message.chat.type == 'private',
+                       ReviewStep.WAITING_FOR_CONFIRMATION)
+async def cancel_clean(update: CallbackQuery, state: FSMContext):
+    await update.message.edit_reply_markup()
+    await state.clear()
+    await update.message.answer('Процесс остановлен')
+
+
+@router.callback_query(F.data == 'resend clean file', F.message.chat.type == 'private',
+                       ReviewStep.WAITING_FOR_CONFIRMATION)
+async def suggest_resend_file(update: CallbackQuery, state: FSMContext):
+    await update.message.edit_reply_markup()
+    await update.message.answer('Отправьте новый файл')
+    await state.set_state(ReviewStep.WAITING_FOR_FILE)
+
+
+@router.callback_query(F.data == 'confirm clean', F.message.chat.type == 'private',
+                       ReviewStep.WAITING_FOR_CONFIRMATION)
+async def clean(update: CallbackQuery, state: FSMContext):
+
+    chat_id = (await state.get_data())['chat_id']
+    ids_to_ban = (await state.get_data())['ids_to_ban']
+
+    admin = await bot.get_chat_member(chat_id, update.from_user.id)
+    if admin.status not in ('creator', 'administrator'):
+        await update.answer('Вы не администратор в этом чате')
+        return
+
+    banned = []
+    not_banned = []
+    for user_id in ids_to_ban:
+        bot_user = db.get_user_by_id(user_id)
+        if bot_user is not None and bot_user.status == db.UserStatus.AUTHORIZED:
+            not_banned.append(bot_user)
+            continue
+
+        await bot.unban_chat_member(chat_id, user_id)
+        banned.append(user_id)
+
+    text = f'Исключили {len(banned)} пользователей.\n\n'
+    if not_banned:
+        text += 'Авторизовались в последний момент и не были исключены:\n'
+        for user in not_banned:
+            text += logs.user_html(user) + '\n'
+
+    await update.message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
+    await state.clear()
