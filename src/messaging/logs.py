@@ -190,3 +190,42 @@ def strangers_listed(user, monitored_link, n):
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
+
+def clean_requested(user, monitored_link, n):
+    text = '💣 #clean_requested\n'
+    text += 'by ' + user_html(user)
+    text += f'\nof {chat_link_html(monitored_link)} <code>{monitored_link.chat_id}</code>'
+    text += f'\n(up to {n} unauthorized users)'
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+
+def file_received(user, monitored_link, file, n):
+    text = '📁 #file_received\n'
+    text += 'from ' + user_html(user)
+    text += f'\nwith {n} users to delete'
+    text += f'\nin {chat_link_html(monitored_link)} <code>{monitored_link.chat_id}</code>'
+    text += f'\n\n{file.file_size / 1024:.2f} KB'
+    text += f'\n<code>{file.file_id}</code>'
+    text += f'\n<code>{file.file_unique_id}</code>'
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+
+def clean_finished(user, monitored_link, banned, not_banned):
+    text = '😵 #clean_finished\n'
+    text += 'by ' + user_html(user)
+    text += f'\nin {chat_link_html(monitored_link)} <code>{monitored_link.chat_id}</code>'
+    text += f'\nresult: {len(banned)} banned, {len(not_banned)} not banned'
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )
+
+def clean_cancelled(user):
+    text = '🙄 #clean_cancelled\n'
+    text += 'by ' + user_html(user)
+    asyncio.create_task(
+        bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
+    )

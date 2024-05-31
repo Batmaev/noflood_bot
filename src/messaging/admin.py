@@ -6,7 +6,6 @@ from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.fsm.storage.memory import MemoryStorage
 
 import telethon
 from telethon.errors.rpcerrorlist import UsernameInvalidError
@@ -355,6 +354,8 @@ async def send_file_for_review(update: CallbackQuery, state: FSMContext):
 
     await state.set_state(ReviewStep.WAITING_FOR_FILE)
 
+    logs.clean_requested(update.from_user, db.get_link(chat_link), len(df))
+
 
 @router.message(F.document, F.chat.type == 'private', ReviewStep.WAITING_FOR_FILE)
 async def get_file(message: Message, state: FSMContext):
@@ -393,6 +394,7 @@ async def get_file(message: Message, state: FSMContext):
     )
 
     await state.set_state(ReviewStep.WAITING_FOR_CONFIRMATION)
+    logs.file_received(message.from_user, chat, file, len(df))
 
 
 @router.callback_query(F.data == 'cancel clean', F.message.chat.type == 'private',
@@ -401,6 +403,7 @@ async def cancel_clean(update: CallbackQuery, state: FSMContext):
     await update.message.edit_reply_markup()
     await state.clear()
     await update.message.answer('Процесс остановлен')
+    logs.clean_cancelled(update.from_user)
 
 
 @router.callback_query(F.data == 'resend clean file', F.message.chat.type == 'private',
@@ -441,4 +444,10 @@ async def clean(update: CallbackQuery, state: FSMContext):
             text += logs.user_html(user) + '\n'
 
     await update.message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
+    logs.clean_finished(
+        update.from_user,
+        db.get_link((await state.get_data())['chat_link']),
+        banned,
+        not_banned
+    )
     await state.clear()
