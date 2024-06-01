@@ -16,7 +16,7 @@ async def error_handler(event: ErrorEvent):
     text += f'<b>{event.exception}</b>\n\n'
     tb = html.escape(''.join(traceback.format_tb(event.exception.__traceback__)[-1]))
     text += f'<pre><code class="language-python">{tb}</code></pre>\n'
-    update = html.escape(event.update.model_dump_json(exclude_defaults=True))
+    update = html.escape(event.update.model_dump_json(exclude_defaults=True))[:3000]
     text += f'<pre><code class="language-json">{update}</code></pre>'
 
     asyncio.create_task(
@@ -24,6 +24,8 @@ async def error_handler(event: ErrorEvent):
     )
     if event.update.message:
         await event.update.message.reply('Бот сломался) Мы попробуем его починить.')
+    if event.update.callback_query:
+        await event.update.callback_query.answer('Бот сломался) Мы попробуем его починить.', show_alert=True)
 
     raise event.exception
 
