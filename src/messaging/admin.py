@@ -1,4 +1,5 @@
 import re
+import asyncio
 
 from aiogram import Router, Bot, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, FSInputFile
@@ -161,16 +162,25 @@ async def check_status(message: Message):
         return
 
     user = await find_user(message)
+
     if isinstance(user, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
+
     if isinstance(user, NoUserSpecifiedError):
-        await message.reply(
+        instruction = await message.reply(
             'Использование:\n'
             '• /is @username\n'
             '• /is 1234567890\n'
             '• или ответом на сообщение пользователя'
         )
+        if message.chat.type != 'private': # delete instruction to avoid spam
+            await asyncio.sleep(300)
+            await instruction.delete()
+            try:
+                await message.delete()
+            except TelegramBadRequest:
+                pass
         return
 
     bot_user = db.get_user_by_id(user.id)
