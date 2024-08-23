@@ -61,6 +61,10 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
 
 @router.message(EmailStatus.WAITING_FOR_EMAIL, F.chat.type == 'private')
 async def process_email(message: Message, state: FSMContext):
+    if message.text is None:
+        await message.answer('Пожалуйста, введите почту текстом.')
+        return
+
     email = message.text.strip().lower()
 
     if '+' in email:
