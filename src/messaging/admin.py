@@ -13,6 +13,7 @@ from telethon.errors.rpcerrorlist import UsernameInvalidError
 import pandas as pd
 
 from . import logs
+from .logs import PrintableUser, UnaccessibleUser
 from ..utils import db
 from ..utils.config import BOT_TOKEN, ADMIN_FILTER, ADMIN_CHAT_ID, API_ID, API_HASH
 
@@ -25,27 +26,25 @@ class NoUserSpecifiedError(Exception):
     pass
 
 
-async def find_userid(message: Message) -> int | Exception:
+async def find_user(message: Message) -> PrintableUser | Exception:
     for entity in message.entities:
         if entity.type == 'mention':
             username = message.text[entity.offset + 1:entity.offset + entity.length]
             try:
                 await client.start(bot_token=BOT_TOKEN)
-                user_id = await client.get_peer_id(username)
-                return user_id
+                user = await client.get_entity(username)
+                return PrintableUser(user)
             except (UsernameInvalidError, ValueError) as error:
                 return error
-            finally:
-                await client.disconnect()
 
     ids = re.findall(r'\d{4,17}', message.text or message.caption)
     if ids:
-        return int(ids[0])
+        return UnaccessibleUser(int(ids[0]))
 
     if message.reply_to_message:
         if message.reply_to_message.forward_from:
-            return message.reply_to_message.forward_from.id
-        return message.reply_to_message.from_user.id
+            return PrintableUser(message.reply_to_message.forward_from)
+        return PrintableUser(message.reply_to_message.from_user)
 
     return NoUserSpecifiedError()
 
@@ -64,11 +63,11 @@ async def chats_of_user_mentioned(user_id: int):
 
 @router.message(Command('where'), ADMIN_FILTER | (F.chat.id == ADMIN_CHAT_ID))
 async def list_user_chats(message: Message):
-    user_id = await find_userid(message)
-    if isinstance(user_id, (UsernameInvalidError, ValueError)):
+    user = await find_user(message)
+    if isinstance(user, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
-    if isinstance(user_id, NoUserSpecifiedError):
+    if isinstance(user, NoUserSpecifiedError):
         await message.reply(
             'Использование:\n'
             '• /where @username\n'
@@ -77,28 +76,28 @@ async def list_user_chats(message: Message):
         )
         return
 
-    bot_user = db.get_user_by_id(user_id)
+    bot_user = db.get_user_by_id(user.id)
     if bot_user is not None:
-        text = logs.user_html(bot_user)
+        text = PrintableUser(bot_user).html()
         text += f'\nEmail: <code>{bot_user.email}</code>'
         text += f'\nРегистрация: {bot_user.created_at}'
         text += f'\nСтатус в боте: {bot_user.status.name}\n\n'
     else:
-        text = f'Пользователь <code>{user_id}</code> не контактировал с ботом\n\n'
+        text = f'Пользователь {user.html()} не контактировал с ботом\n\n'
 
     text += 'Статус в чатах:\n'
-    async for chat, member in chats_of_user_mentioned(user_id):
+    async for chat, member in chats_of_user_mentioned(user.id):
         text += f'{chat.chat_name}: {member.status.value}\n'
 
     await message.answer(text, parse_mode='HTML')
 
 @router.message(Command('ban'), ADMIN_FILTER)
 async def ban(message: Message):
-    user_id = await find_userid(message)
-    if isinstance(user_id, (UsernameInvalidError, ValueError)):
+    user = await find_user(message)
+    if isinstance(user, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
-    if isinstance(user_id, NoUserSpecifiedError):
+    if isinstance(user, NoUserSpecifiedError):
         await message.reply(
             'Использование:\n'
             '• /ban @username\n'
@@ -107,10 +106,10 @@ async def ban(message: Message):
         )
         return
 
-    db.ban_user(user_id)
+    db.ban_user(user.id)
 
     text = ''
-    async for chat, member in chats_of_user_mentioned(user_id):
+    async for chat, member in chats_of_user_mentioned(user.id):
         if member.status.value != 'kicked':
             try:
                 await bot.ban_chat_member(chat.chat_id, member.user.id)
@@ -125,11 +124,11 @@ async def ban(message: Message):
 
 @router.message(Command('unban'), ADMIN_FILTER)
 async def unban(message: Message):
-    user_id = await find_userid(message)
-    if isinstance(user_id, (UsernameInvalidError, ValueError)):
+    user = await find_user(message)
+    if isinstance(user, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
-    if isinstance(user_id, NoUserSpecifiedError):
+    if isinstance(user, NoUserSpecifiedError):
         await message.reply(
             'Использование:\n'
             '• /unban @username\n'
@@ -138,10 +137,10 @@ async def unban(message: Message):
         )
         return
 
-    db.unban_user(user_id)
+    db.unban_user(user.id)
 
     text = ''
-    async for chat, member in chats_of_user_mentioned(user_id):
+    async for chat, member in chats_of_user_mentioned(user.id):
         if member.status.value == 'kicked':
             try:
                 await bot.unban_chat_member(chat.chat_id, member.user.id, only_if_banned=True)
@@ -161,11 +160,11 @@ async def check_status(message: Message):
         await message.reply('Вы не авторизованы и не можете использовать эту команду')
         return
 
-    user_id = await find_userid(message)
-    if isinstance(user_id, (UsernameInvalidError, ValueError)):
+    user = await find_user(message)
+    if isinstance(user, (UsernameInvalidError, ValueError)):
         await message.reply('Юзернейм никому не принадлежит')
         return
-    if isinstance(user_id, NoUserSpecifiedError):
+    if isinstance(user, NoUserSpecifiedError):
         await message.reply(
             'Использование:\n'
             '• /is @username\n'
@@ -174,20 +173,25 @@ async def check_status(message: Message):
         )
         return
 
-    bot_user = db.get_user_by_id(user_id)
+    bot_user = db.get_user_by_id(user.id)
+
+    if isinstance(user, UnaccessibleUser) and bot_user is not None:
+        user_text = PrintableUser(bot_user).full_name
+    else:
+        user_text = user.full_name
 
     if bot_user is None:
-        await message.reply('Этот пользователь не регистрировался в боте')
+        await message.reply(f'{user_text} не регистрировался в боте')
     else:
         match bot_user.status:
             case db.UserStatus.NOT_AUTHORIZED | db.UserStatus.AUTHORIZING:
-                await message.reply('Пользователь начинал регистрацию в боте, но не завершил её')
+                await message.reply(f'{user_text} начинал(a) регистрацию в боте, но не завершил(a) её')
             case db.UserStatus.AUTHORIZED:
-                await message.reply('Пользователь подтвердил свой статус физтеха')
+                await message.reply(f'{user_text} подтвердил(a) свой статус физтеха')
             case db.UserStatus.BANNED:
-                await message.reply('Пользователь забанен админами бота')
+                await message.reply(f'{user_text} забанен(a) админами бота')
 
-    logs.status_checked(message.from_user, bot_user, user_id)
+    logs.status_checked(message.from_user, user, bot_user)
 
 
 @router.message(Command('strangers'), F.chat.type == 'private')
@@ -221,10 +225,7 @@ async def list_strangers(message: Message):
         if member.username:
             mention_str = f'@{member.username}'
         else:
-            if member.last_name:
-                full_name = f'{member.first_name} {member.last_name}'
-            else:
-                full_name = member.first_name
+            full_name = PrintableUser(member).full_name
             mention_str = f'<a href="tg://user?id={member.id}">{full_name}</a>'
 
         mention_str += f' <code>{member.id}</code>'
@@ -248,8 +249,6 @@ async def list_strangers(message: Message):
 
     if text != '':
         await message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
-
-    await client.disconnect()
 
     logs.strangers_listed(message.from_user, monitored_link, i)
 
@@ -342,7 +341,6 @@ async def send_file_for_review(update: CallbackQuery, state: FSMContext):
             'last_name': member.last_name,
             'status': status
         })
-    await client.disconnect()
 
     df = pd.DataFrame(strangers)
     df.to_excel(f'{chat_id}.xlsx', index=False)
@@ -355,6 +353,7 @@ async def send_file_for_review(update: CallbackQuery, state: FSMContext):
                 'Если написать FALSE, оставить ячейку пустой или удалить строку целиком, '
                 'то мы оставим пользователя в чате.'
     )
+    await update.answer()
 
     await state.set_state(ReviewStep.WAITING_FOR_FILE)
 
@@ -407,6 +406,7 @@ async def cancel_clean(update: CallbackQuery, state: FSMContext):
     await update.message.edit_reply_markup()
     await state.clear()
     await update.message.answer('Процесс остановлен')
+    await update.answer()
     logs.clean_cancelled(update.from_user)
 
 
@@ -415,6 +415,7 @@ async def cancel_clean(update: CallbackQuery, state: FSMContext):
 async def suggest_resend_file(update: CallbackQuery, state: FSMContext):
     await update.message.edit_reply_markup()
     await update.message.answer('Отправьте новый файл')
+    await update.answer()
     await state.set_state(ReviewStep.WAITING_FOR_FILE)
 
 
@@ -445,7 +446,7 @@ async def clean(update: CallbackQuery, state: FSMContext):
     if not_banned:
         text += 'Авторизовались в последний момент и не были исключены:\n'
         for user in not_banned:
-            text += logs.user_html(user) + '\n'
+            text += PrintableUser(user).html() + '\n'
 
     await update.message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
     logs.clean_finished(

@@ -3,7 +3,7 @@ import traceback
 import html
 
 from aiogram import Bot
-from aiogram.types import User, Chat, ErrorEvent
+from aiogram.types import Chat, ErrorEvent
 
 from ..utils.config import BOT_TOKEN, LOGS_CHAT_ID, NOTIFICATIONS_LOGS_CHAT_ID, SUPPORT_CALL
 
@@ -40,17 +40,37 @@ def warn(msg: str, notify: bool = False):
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-
-def user_html(user: User):
-    return f'@{user.username or ""} <a href="tg://user?id={user.id}">{html.escape(user.full_name)}</a> <code>{user.id}</code>'
-
 def chat_link_html(monitored_link):
     return f'<a href="{monitored_link.link}">{html.escape(monitored_link.chat_name)}</a>'
 
 
-def new_user(user: User, utm_source):
+class PrintableUser:
+    def __init__(self, user):
+        self.id = user.id
+        self.username = user.username
+        self.first_name = user.first_name
+        self.last_name = user.last_name
+
+    @property
+    def full_name(self):
+        if self.last_name:
+            return f'{self.first_name} {self.last_name}'
+        return self.first_name
+
+    def html(self):
+        return f'@{self.username or ""} <a href="tg://user?id={self.id}">{html.escape(self.full_name)}</a> <code>{self.id}</code>'
+
+class UnaccessibleUser(PrintableUser):
+    def __init__(self, user_id: int):
+        self.id = user_id
+        self.username = None
+        self.first_name = str(user_id)
+        self.last_name = None
+
+
+def new_user(user, utm_source):
     text = '👤 #new_user\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     if utm_source:
         text += f'\nUTM Source: {chat_link_html(utm_source)}'
 
@@ -66,72 +86,72 @@ def new_link(monitored_link):
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def new_code(user: User, email: str, code: str):
+def new_code(user, email: str, code: str):
     text = '💌 #new_code\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     text += f'\nEmail: <code>{email}</code>'
     text += f'\nCode: <code>{code}</code>'
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def finished_authorization(user: User, utm_source):
+def finished_authorization(user, utm_source):
     text = '✨ #finished_authorization\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     if utm_source:
         text += f'\nUTM Source: {chat_link_html(utm_source)}'
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def chat_join(user: User, monitored_link):
+def chat_join(user, monitored_link):
     text = '👁️‍🗨️ #chat_join\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     text += f'\n{chat_link_html(monitored_link)}'
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
 
-def bot_kicked(chat: Chat, user: User):
+def bot_kicked(chat: Chat, user):
     text = '👢 #bot_kicked\n'
     text += f'from {chat.title} <code>{chat.id}</code>\n'
-    text += 'by ' + user_html(user)
+    text += 'by ' + PrintableUser(user).html()
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def manual_authorization(user: User, email: str | None):
+def manual_authorization(user, email: str | None):
     text = '🔐 #manual_authorization\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     if email:
         text += f'\n<code>{email}</code>'
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def button_pressed(user: User, button: str):
+def button_pressed(user, button: str):
     text = f'🔘 #button_pressed {button}\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def malicious_user(user: User, email: str):
+def malicious_user(user, email: str):
     text = '🚷 #malicious_user\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     text += f'\n<code>{email}</code>'
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def email_reuse(user: User, bot_users, email: str):
+def email_reuse(user, bot_users, email: str):
     text = '🤔 #email_reuse\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     text += f'\n<code>{email}</code>\n\n'
     text += 'User(s) with the same email:\n'
     for bot_user in bot_users:
-        text += f'- {user_html(bot_user)} ({bot_user.status.name})\n'
+        text += f'- {PrintableUser(bot_user).html()} ({bot_user.status.name})\n'
     text += '\n// ' + SUPPORT_CALL
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
@@ -139,14 +159,14 @@ def email_reuse(user: User, bot_users, email: str):
 
 def ban_user(bot_user):
     text = '🚫 #ban_user\n'
-    text += user_html(bot_user)
+    text += PrintableUser(bot_user).html()
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
 def unban_user(bot_user):
     text = '🕊️ #unban_user\n'
-    text += user_html(bot_user)
+    text += PrintableUser(bot_user).html()
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
@@ -154,7 +174,7 @@ def unban_user(bot_user):
 
 def sent_notification(bot_user, content: str):
     text = '🪶 #sent_notification\n'
-    text += user_html(bot_user)
+    text += PrintableUser(bot_user).html()
     text += '\n\n' + content
     asyncio.create_task(
         bot.send_message(NOTIFICATIONS_LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
@@ -162,31 +182,32 @@ def sent_notification(bot_user, content: str):
 
 def error_notification(bot_user, error: Exception):
     text = '📭 #error_notification\n'
-    text += user_html(bot_user)
+    text += PrintableUser(bot_user).html()
     text += f'\n{error}'
     asyncio.create_task(
         bot.send_message(NOTIFICATIONS_LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
-def status_checked(user, bot_user, user_id):
+def status_checked(checker_user, being_checked_user, user_from_db):
     text = '🔍 #status_checked\n'
-    text += user_html(user)
-    text += '\n\nhas checked status of\n'
+    text += PrintableUser(checker_user).html()
 
-    if bot_user is None:
-        text += f'<code>{user_id}</code>\n'
-        text += 'User not found in DB'
+    text += '\n\nhas checked status of\n'
+    text += PrintableUser(being_checked_user).html()
+
+    if user_from_db is not None:
+        text += f'\n({user_from_db.status.name})'
     else:
-        text += user_html(bot_user)
-        text += f'\n({bot_user.status.name})'
+        text += '\nUser not found in DB'
 
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )
 
+
 def strangers_listed(user, monitored_link, n):
     text = '🕵️‍♂️ #strangers_listed\n'
-    text += user_html(user)
+    text += PrintableUser(user).html()
     text += f'\n\nlisted strangers in {chat_link_html(monitored_link)}'
     text += f'\nresult: {n}'
     asyncio.create_task(
@@ -195,7 +216,7 @@ def strangers_listed(user, monitored_link, n):
 
 def clean_requested(user, monitored_link, n):
     text = '💣 #clean_requested\n'
-    text += 'by ' + user_html(user)
+    text += 'by ' + PrintableUser(user).html()
     text += f'\nof {chat_link_html(monitored_link)} <code>{monitored_link.chat_id}</code>'
     text += f'\n(up to {n} unauthorized users)'
     asyncio.create_task(
@@ -205,7 +226,7 @@ def clean_requested(user, monitored_link, n):
 
 def file_received(user, monitored_link, file, n):
     text = '📁 #file_received\n'
-    text += 'from ' + user_html(user)
+    text += 'from ' + PrintableUser(user).html()
     text += f'\nwith {n} users to delete'
     text += f'\nin {chat_link_html(monitored_link)} <code>{monitored_link.chat_id}</code>'
     text += f'\n\n{file.file_size / 1024:.2f} KB'
@@ -218,7 +239,7 @@ def file_received(user, monitored_link, file, n):
 
 def clean_finished(user, monitored_link, banned, not_banned):
     text = '😵 #clean_finished\n'
-    text += 'by ' + user_html(user)
+    text += 'by ' + PrintableUser(user).html()
     text += f'\nin {chat_link_html(monitored_link)} <code>{monitored_link.chat_id}</code>'
     text += f'\nresult: {len(banned)} banned, {len(not_banned)} not banned'
     asyncio.create_task(
@@ -227,7 +248,7 @@ def clean_finished(user, monitored_link, banned, not_banned):
 
 def clean_cancelled(user):
     text = '🙄 #clean_cancelled\n'
-    text += 'by ' + user_html(user)
+    text += 'by ' + PrintableUser(user).html()
     asyncio.create_task(
         bot.send_message(LOGS_CHAT_ID, text, parse_mode='HTML', disable_web_page_preview=True)
     )

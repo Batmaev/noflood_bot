@@ -41,12 +41,6 @@ class BotUser(Base):
     created_at = Column(DateTime, server_default=func.now()) # pylint: disable=not-callable
     last_ad_time = Column(DateTime, default=datetime.datetime(1970, 1, 1))
 
-    @property
-    def full_name(self) -> str:
-        if self.last_name:
-            return f'{self.first_name} {self.last_name}'
-        return self.first_name
-
 
 
 if __name__ == '__main__':
