@@ -4,6 +4,9 @@ DATABASE_FILE = 'db.db'
 
 BOT_TOKEN = '0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 
+API_ID = 111111111
+API_HASH = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+
 SMTP_SERVER = 'smtp.yandex.ru'
 SMTP_PORT = 587
 EMAIL = 'aaaaaaaaaaa@aaaaaa.aaa'
