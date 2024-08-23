@@ -1,7 +1,7 @@
 from aiogram import Router, Bot
 from aiogram.types import Message, ChatJoinRequest, ChatMemberUpdated
 from aiogram.filters import Command
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
 from .ads import ad_after_join
 from ..utils.config import BOT_TOKEN
@@ -94,9 +94,13 @@ async def accept_or_decline(request: ChatJoinRequest):
 
     else:
         await request.approve()
-        await congrats_user(request, monitored_link)
         logs.chat_join(request.from_user, monitored_link)
-        await ad_after_join(request)
+        try:
+            await congrats_user(request, monitored_link)
+            await ad_after_join(request)
+        except TelegramForbiddenError as error:
+            user_text = logs.PrintableUser(request.from_user).html()
+            logs.warn(f'{user_text}\n{error}')
 
 
 async def talk_to_user(request: ChatJoinRequest, monitored_link: MonitoredLink):
