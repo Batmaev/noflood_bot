@@ -9,7 +9,7 @@
 
 ## Использованные технологии
 
-Python, SQLite, Docker, asyncio, aiogram, telethon, SMTPlib, pandas
+Python, Docker, SQLite, SQLAlchemy, asyncio, aiogram, telethon, SMTPlib, pandas
 
 
 ## Как запустить
