@@ -260,7 +260,7 @@ async def list_strangers(message: Message):
     if text != '':
         await message.answer(text, parse_mode='HTML', disable_web_page_preview=True)
 
-    logs.strangers_listed(message.from_user, monitored_link, i)
+    logs.strangers_listed(message.from_user, monitored_link, i-1)
 
 
 
