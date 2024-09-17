@@ -79,9 +79,11 @@ def save_email(user: User, email: str):
         session.commit()
 
 def get_users_with_email(email: str) -> list[BotUser]:
+    email_main_part = email.split('@')[0]
+
     with Session() as session:
         return session.query(BotUser).filter(
-            (BotUser.email == email) & (
+            (BotUser.email.like(f'{email_main_part}@%')) & (
                 (BotUser.status == UserStatus.AUTHORIZED) | (BotUser.status == UserStatus.BANNED)
             )
         ).all()

@@ -55,7 +55,14 @@ async def ask_for_email(update: CallbackQuery | Message, state: FSMContext):
     else:
         message = update
 
-    await message.answer(ASK_FOR_EMAIL, parse_mode='HTML', disable_web_page_preview=True)
+    await message.answer(
+        'Давай удостоверимся, что ты из МФТИ. '
+        'Hапиши свою почту на домене <code>@phystech.edu</code> или <code>@phystech.su</code>, '
+        'и мы вышлем на неё секретный код 😉 \n\n'
+        'Если у тебя нет такой почты, '
+        'то напиши <a href="https://t.me/sapereaude_hv">Капице</a>)',
+        parse_mode='HTML', disable_web_page_preview=True)
+
     await state.set_state(EmailStatus.WAITING_FOR_EMAIL)
 
 
@@ -71,7 +78,7 @@ async def process_email(message: Message, state: FSMContext):
         await message.answer('Почта не должна содержать символ "+"')
         return
 
-    if not email.endswith('@phystech.edu'):
+    if not email.endswith('@phystech.edu') and not email.endswith('@phystech.su'):
         await message.answer('Не могу разобрать, что-то на физтеховском. '
                              'Попробуйте ещё раз.')
         return
