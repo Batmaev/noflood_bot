@@ -9,7 +9,6 @@ from ..utils import db
 from ..utils.config import SUPPORT_CHAT_ID, BOT_TOKEN, ADMIN_FILTER
 from ..utils.mailing import send_code
 from . import logs
-from .long_texts import ASK_FOR_EMAIL
 
 
 bot = Bot(BOT_TOKEN)
