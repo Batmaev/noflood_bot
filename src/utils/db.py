@@ -151,4 +151,7 @@ def get_link(link: str) -> MonitoredLink:
 
 def get_all_monitored_chats() -> list[MonitoredLink]:
     with Session() as session:
-        return session.query(MonitoredLink).all()
+        links = session.query(MonitoredLink).all()
+
+    chats_without_duplicates = {link.chat_id: link for link in links}
+    return list(chats_without_duplicates.values())
