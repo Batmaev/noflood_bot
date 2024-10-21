@@ -176,10 +176,10 @@ async def check_status(message: Message):
         )
         if message.chat.type != 'private': # delete instruction to avoid spam
             await asyncio.sleep(300)
-            await instruction.delete()
             try:
+                await instruction.delete()
                 await message.delete()
-            except TelegramBadRequest:
+            except (TelegramBadRequest, AttributeError):
                 pass
         return
 
